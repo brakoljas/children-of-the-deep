@@ -748,7 +748,9 @@
       const ship1 = uid('ship');
       const ship2 = uid('ship');
       const cap = uid('leader');
-      const priest = uid('leader');
+      const cap2 = uid('leader');
+      const cap3 = uid('leader');
+      const cap4 = uid('leader');
       const cell = uid('leader');
       const fleet = uid('fleet');
       const vision = uid('vision');
@@ -769,16 +771,18 @@
           { id: loc2, name: 'Серая гавань', type: 'Городская ячейка', tier: 1, sailors: 6, acolytes: 5, portfolk: 16, thugs: 3, rich: 1, infamy: 2, status: 'Скрыта', infrastructure: 'Подвал у рыбного склада, знакомые докеры.', playerNotes: 'Полезная точка для слухов и контрабанды.', dmNotes: '' }
         ],
         ships: [
-          { id: ship1, name: 'Солёная Вдова', type: 'Парусный корабль', fleetId: fleet, state: 'Целый', sailors: 14, thugs: 4, cargo: '', features: 'Быстрая, с низким силуэтом.', playerNotes: '', dmNotes: '' },
-          { id: ship2, name: 'Тихий Омут', type: 'Лодка', fleetId: '', state: 'Изношен', sailors: 6, thugs: 1, cargo: '', features: 'Неприметное судно для малых перевозок.', playerNotes: '', dmNotes: '' }
+          { id: ship1, name: 'Равенна', type: 'Парусный корабль', fleetId: fleet, state: 'Целый', sailors: 14, thugs: 4, cargo: '', features: 'Быстрая, с низким силуэтом.', playerNotes: '', dmNotes: '' },
+          { id: ship2, name: 'Ужас Глубин', type: 'Военный корабль', fleetId: '', state: 'Целый', sailors: 18, thugs: 8, cargo: '', features: 'Тяжёлое культовое судно для устрашения и абордажа.', playerNotes: '', dmNotes: '' }
         ],
         fleets: [
           { id: fleet, name: 'Чёрная Бездна', captainId: cap, locationId: loc1, status: 'Свободен', currentMissionId: '', playerNotes: 'Первый боевой флот Айзека.', dmNotes: '' }
         ],
         leaders: [
-          { id: cap, name: 'Капитан Марлоу', type: 'Капитан флота', assignmentId: fleet, skill: 3, loyalty: 3, status: 'Свободен', currentMissionId: '', description: 'Седой моряк с голосом, будто корабельный канат трётся о мокрое дерево.', playerNotes: '', dmNotes: '' },
-          { id: priest, name: 'Сестра Нерида', type: 'Старший жрец', assignmentId: loc1, skill: 3, loyalty: 4, status: 'Свободен', currentMissionId: '', description: 'Тихая жрица, которая говорит с водой в чашах и слышит ответы в пузырях.', playerNotes: '', dmNotes: '' },
-          { id: cell, name: 'Кривой Дэн', type: 'Глава ячейки', assignmentId: loc2, skill: 2, loyalty: 2, status: 'Свободен', currentMissionId: '', description: 'Доковый посредник, знающий, кто пьёт, кто ворует и кто боится темноты.', playerNotes: '', dmNotes: '' }
+          { id: cap, name: 'Капитан', type: 'Капитан флота', assignmentId: fleet, status: 'Свободен', currentMissionId: '', description: 'Первый капитан флота Детей глубины.', playerNotes: '', dmNotes: '' },
+          { id: cap2, name: 'Спрут', type: 'Капитан флота', assignmentId: '', status: 'Свободен', currentMissionId: '', description: 'Капитан из резерва, пока без флота.', playerNotes: '', dmNotes: '' },
+          { id: cap3, name: 'Мурена', type: 'Капитан флота', assignmentId: '', status: 'Свободен', currentMissionId: '', description: 'Капитан из резерва, пока без флота.', playerNotes: '', dmNotes: '' },
+          { id: cap4, name: 'Лотрианус', type: 'Капитан флота', assignmentId: '', status: 'Свободен', currentMissionId: '', description: 'Капитан из резерва, пока без флота.', playerNotes: '', dmNotes: '' },
+          { id: cell, name: 'Рыбак', type: 'Глава ячейки', assignmentId: loc2, status: 'Свободен', currentMissionId: '', description: 'Глава городской ячейки среди рыбаков, докеров и работяг.', playerNotes: '', dmNotes: '' }
         ],
         missions: [],
         visions: [
@@ -1763,16 +1767,16 @@
     }
 
     function renderLeaderCard(l) {
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>${statusChip(l.status)}</div><div class="chips"><span class="chip">Мастер ${l.skill}/5</span><span class="chip">Лояльность ${l.loyalty}/5</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', l.currentMissionId, '—'))}</span></div>${l.description ? `<p class="item-sub">${escapeHtml(l.description)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLeaderForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('leaders','${l.id}')">Удалить</button></div></div>`;
+      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>${statusChip(l.status)}</div><div class="chips"><span class="chip">Миссия: ${escapeHtml(nameOf('missions', l.currentMissionId, '—'))}</span></div>${l.description ? `<p class="item-sub">${escapeHtml(l.description)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLeaderForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('leaders','${l.id}')">Удалить</button></div></div>`;
     }
 
-    function renderLeaderMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div><div class="chips"><span class="chip">Мастер ${l.skill}</span><span class="chip">Лояльность ${l.loyalty}</span></div></div>`; }
+    function renderLeaderMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>`; }
     function assignmentName(l) { return l.type === 'Капитан флота' ? nameOf('fleets', l.assignmentId, 'Резерв') : nameOf('locations', l.assignmentId, 'Без локации'); }
 
     function openLeaderForm(id = '') {
-      const l = id ? byId('leaders', id) : { name:'', type:'Капитан флота', assignmentId:'', skill:1, loyalty:3, status:'Свободен', currentMissionId:'', description:'', playerNotes:'', dmNotes:'' };
+      const l = id ? byId('leaders', id) : { name:'', type:'Капитан флота', assignmentId:'', status:'Свободен', currentMissionId:'', description:'', playerNotes:'', dmNotes:'' };
       const assignmentOpts = l.type === 'Капитан флота' ? entityOptions('fleets', l.assignmentId, null, 'Резерв') : entityOptions('locations', l.assignmentId, null, 'Без локации');
-      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid"><div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form)">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Мастерство</label><input name="skill" type="number" min="1" max="5" value="${l.skill}" ${isDM() ? '' : 'readonly'} /></div><div><label>Лояльность</label><input name="loyalty" type="number" min="1" max="5" value="${l.loyalty}" ${isDM() ? '' : 'readonly'} /></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid"><div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form)">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
     }
 
     function refreshLeaderAssignment(form) {
@@ -1788,7 +1792,7 @@
       obj.assignmentId = f.assignmentId.value;
       obj.description = f.description.value;
       obj.playerNotes = f.playerNotes.value;
-      if (isDM()) { obj.skill = Number(f.skill.value); obj.loyalty = Number(f.loyalty.value); obj.status = f.status.value; obj.dmNotes = f.dmNotes?.value || ''; } else { obj.skill = obj.skill || 1; obj.loyalty = obj.loyalty || 3; obj.status = obj.status || 'Свободен'; }
+      if (isDM()) { obj.status = f.status.value; obj.dmNotes = f.dmNotes?.value || ''; } else { obj.status = obj.status || 'Свободен'; }
       if (!id) app.leaders.push(obj);
       saveState(false); closeModal(); render();
     }
