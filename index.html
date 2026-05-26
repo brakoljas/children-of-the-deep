@@ -694,9 +694,15 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const STORAGE_KEY = 'deti_glubiny_state_v2';
+    const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
+    const ROOM_CODE = 'DEEP-CHILDREN';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let cloudSaveEnabled = false;
+    let cloudSaveTimer = null;
 
     const tabs = [
       ['overview', 'Обзор'],
@@ -787,7 +793,53 @@
     function saveState(show = false) {
       app.ui = { ...(app.ui || {}), mode };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-      if (show) toast('Состояние сохранено в браузере.');
+      if (cloudSaveEnabled) scheduleCloudSave();
+      if (show) toast('Состояние сохранено в браузере и отправлено в Supabase.');
+    }
+
+    function scheduleCloudSave() {
+      clearTimeout(cloudSaveTimer);
+      cloudSaveTimer = setTimeout(saveStateToSupabase, 700);
+    }
+
+    async function saveStateToSupabase() {
+      try {
+        app.ui = { ...(app.ui || {}), mode };
+        const { error } = await supabaseClient
+          .from('cult_states')
+          .upsert({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }, { onConflict: 'room_code' });
+        if (error) throw error;
+      } catch (error) {
+        console.error('Supabase save error:', error);
+        toast('Не удалось сохранить в Supabase. Локальная копия сохранена.');
+      }
+    }
+
+    async function loadStateFromSupabase() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('cult_states')
+          .select('data')
+          .eq('room_code', ROOM_CODE)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data?.data?.cult) {
+          app = data.data;
+          mode = app.ui?.mode || 'player';
+          normalizeState();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+          render();
+          toast('Состояние загружено из Supabase.');
+        } else {
+          await saveStateToSupabase();
+          toast('Создана первая запись состояния в Supabase.');
+        }
+      } catch (error) {
+        console.error('Supabase load error:', error);
+        toast('Не удалось загрузить Supabase. Используется локальная копия.');
+      }
     }
 
     function loadState() {
@@ -1865,6 +1917,8 @@
 
     normalizeState();
     render();
+    cloudSaveEnabled = true;
+    loadStateFromSupabase();
   </script>
 </body>
 </html>
