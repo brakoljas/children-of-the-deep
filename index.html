@@ -697,6 +697,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     const STORAGE_KEY = 'deti_glubiny_state_v2';
+    const DM_PASSWORD = 'hydrcad';
     const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
     const ROOM_CODE = 'DEEP-CHILDREN';
@@ -718,9 +719,9 @@
     const leaderTypes = ['Капитан флота', 'Старший жрец', 'Глава ячейки'];
     const locationTypes = ['Крупный остров', 'Малый остров', 'Городская ячейка', 'Деревенская ячейка', 'Тайная бухта', 'Другое'];
     const shipTypes = ['Лодка', 'Когг', 'Ладья', 'Парусный корабль', 'Военный корабль', 'Галера', 'Другое'];
-    const shipStates = ['Целый', 'Изношен', 'Повреждён', 'Тяжело повреждён', 'В ремонте', 'Захвачен', 'Потерян', 'Затонул', 'Проклят', 'Недоступен'];
+    const shipStates = ['Целый', 'Повреждён', 'Захвачен', 'Потерян', 'Затонул'];
     const fleetStatuses = ['Свободен', 'В порту', 'В море', 'На миссии', 'Возвращается', 'Скрывается', 'Повреждён', 'Потерян', 'Недоступен'];
-    const leaderStatuses = ['Свободен', 'На миссии', 'В море', 'Скрывается', 'Ранен', 'Арестован', 'Пропал', 'Недоступен', 'Мёртв'];
+    const leaderStatuses = ['Свободен', 'На миссии', 'В плену', 'Пропал', 'Мёртв'];
     const locationStatuses = ['Активна', 'Скрыта', 'Под угрозой', 'Раскрыта', 'Уничтожена', 'Недоступна'];
     const missionStatuses = ['Черновик', 'Ожидает ДМ', 'Активна', 'Задержана', 'Осложнена', 'Готова к завершению', 'Завершена', 'Провалена', 'Отменена'];
     const visionTypes = ['Видение', 'Приказ', 'Знамение', 'Предупреждение', 'Дар', 'Угроза'];
@@ -736,7 +737,7 @@
 
     let app = loadState() || demoState();
     let currentTab = 'overview';
-    let mode = app.ui?.mode || 'player';
+    let mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
 
     function uid(prefix) {
       return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -953,6 +954,7 @@
     function shipsInFleet(fleetId) { return app.ships.filter(s => s.fleetId === fleetId); }
     function leadersForLocation(locId) { return app.leaders.filter(l => l.assignmentId === locId && l.type !== 'Капитан флота'); }
     function freeLeaders() { return app.leaders.filter(l => l.status === 'Свободен'); }
+    function leaderCanTakeMission(leader) { return leader && leader.status === 'Свободен'; }
     function activeMissions() { return app.missions.filter(m => ['Активна', 'Задержана', 'Осложнена', 'Готова к завершению'].includes(m.status)); }
     function pendingMissions() { return app.missions.filter(m => m.status === 'Ожидает ДМ'); }
 
@@ -971,6 +973,14 @@
 
 
     function setMode(next) {
+      if (next === 'dm' && mode !== 'dm') {
+        const password = prompt('Пароль ДМа:');
+        if (password !== DM_PASSWORD) {
+          toast('Неверный пароль ДМа.');
+          return;
+        }
+        sessionStorage.setItem('deti_glubiny_dm_unlocked', 'true');
+      }
       mode = next;
       if (currentTab === 'dm' && !isDM()) currentTab = 'overview';
       saveState(false);
@@ -1120,9 +1130,9 @@
       const type = form.sourceType.value;
       const sourceId = form.sourceId.value;
       if (type === 'fleet') {
-        form.leaderId.innerHTML = entityOptions('leaders', '', l => l.type === 'Капитан флота' && (!sourceId || l.assignmentId === sourceId) && !hasBusyMissionForLeader(l.id), 'Выбери капитана');
+        form.leaderId.innerHTML = entityOptions('leaders', '', l => l.type === 'Капитан флота' && (!sourceId || l.assignmentId === sourceId) && leaderCanTakeMission(l) && !hasBusyMissionForLeader(l.id), 'Выбери капитана');
       } else {
-        form.leaderId.innerHTML = entityOptions('leaders', '', l => l.type !== 'Капитан флота' && (!sourceId || l.assignmentId === sourceId) && !hasBusyMissionForLeader(l.id), 'Выбери главаря');
+        form.leaderId.innerHTML = entityOptions('leaders', '', l => l.type !== 'Капитан флота' && (!sourceId || l.assignmentId === sourceId) && leaderCanTakeMission(l) && !hasBusyMissionForLeader(l.id), 'Выбери главаря');
       }
       refreshMissionActionOptions(form);
       applyExpectedOutcome(form);
@@ -1263,7 +1273,7 @@
       let cls = 'chip';
       if (['Завершена', 'Свободен', 'Активно', 'Активна'].includes(status)) cls += ' good';
       if (['Ожидает ДМ', 'Задержана', 'Осложнена', 'Готова к завершению'].includes(status)) cls += ' warn';
-      if (['Провалена', 'Отменена', 'Мёртв', 'Потерян', 'Затонул', 'Раскрыта', 'Уничтожена'].includes(status)) cls += ' danger';
+      if (['Провалена', 'Отменена', 'Мёртв', 'В плену', 'Пропал', 'Потерян', 'Затонул', 'Раскрыта', 'Уничтожена'].includes(status)) cls += ' danger';
       return `<span class="${cls}">${escapeHtml(status)}</span>`;
     }
 
@@ -1322,6 +1332,7 @@
       const leader = byId('leaders', leaderId);
       if (!leader) return { ok: false, message: 'Выбранный главарь не найден.' };
       if (!leader.assignmentId) return { ok: false, message: 'Главарь без локации или флота не может выполнять миссии.' };
+      if (!leaderCanTakeMission(leader)) return { ok: false, message: `Главарь со статусом «${leader.status}» не может выполнять миссии.` };
 
       if (busyMissionStatuses().includes(missionStatus) && hasBusyMissionForLeader(leaderId, ignoreMissionId)) {
         return { ok: false, message: 'Этот главарь уже занят другой незавершённой миссией.' };
@@ -1372,7 +1383,7 @@
       m.startTick = m.startTick || app.cult.currentTick;
       const leader = byId('leaders', m.leaderId);
       if (leader) {
-        leader.status = leader.type === 'Капитан флота' ? 'В море' : 'На миссии';
+        leader.status = 'На миссии';
         leader.currentMissionId = m.id;
       }
       if (m.sourceType === 'fleet') {
