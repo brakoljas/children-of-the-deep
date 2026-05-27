@@ -773,7 +773,7 @@
     const missionActions = {
       'Капитан флота': ['Торговый рейс', 'Контрабанда', 'Пиратство', 'Перевозка', 'Патруль', 'Экспедиция', 'Другое'],
       'Старший жрец': ['Малый ритуал', 'Жертвоприношение', 'Большое жертвоприношение', 'Вербовка послушников', 'Другое'],
-      'Глава ячейки': ['Основать ячейку', 'Общая вербовка', 'Тушение слухов', 'Саботаж', 'Инфильтрация', 'Захват жертвы', 'Другое']
+      'Глава ячейки': ['Основать ячейку', 'Общая вербовка', 'Тушение слухов', 'Подкуп', 'Саботаж', 'Инфильтрация', 'Захват жертвы', 'Другое']
     };
 
 
@@ -1554,8 +1554,9 @@
       if (action === 'Основать ячейку') { outcome.wealth = -2; outcome.acolytes = 10; outcome.portfolk = 30; outcome.thugs = 5; outcome.infamy = 1; }
       if (action === 'Общая вербовка') { outcome.wealth = -1 * d; outcome.sailors = 15 * d; outcome.portfolk = 35 * d; outcome.thugs = 10 * d; }
       if (action === 'Тушение слухов') { outcome.wealth = -1 * d; outcome.infamy = -2 * d; }
+      if (action === 'Подкуп') { outcome.wealth = -2 * d; outcome.infamy = -3 * d; }
       if (action === 'Саботаж') { outcome.wealth = 0; outcome.infamy = 1 * d; }
-      if (action === 'Инфильтрация') { outcome.wealth = 0; outcome.rich = 1 * d; }
+      if (action === 'Инфильтрация') { outcome.wealth = 1 * d; outcome.rich = 2 * d; }
       if (action === 'Захват жертвы') outcome.infamy = 1 * d;
       return outcome;
     }
