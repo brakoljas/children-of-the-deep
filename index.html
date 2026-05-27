@@ -712,7 +712,8 @@
     const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
     const ROOM_CODE = 'DEEP-CHILDREN';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_TIMEOUT_MS = 8000;
+    const supabaseClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
     let autoSaveInterval = null;
@@ -823,10 +824,15 @@
 
     async function saveStateToSupabase() {
       try {
+        if (!supabaseClient) throw new Error('Supabase client не загрузился.');
         app.ui = { ...(app.ui || {}), mode };
-        const { error } = await supabaseClient
-          .from('cult_states')
-          .upsert({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }, { onConflict: 'room_code' });
+        const { error } = await withTimeout(
+          supabaseClient
+            .from('cult_states')
+            .upsert({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }, { onConflict: 'room_code' }),
+          SUPABASE_TIMEOUT_MS,
+          'Supabase не ответил за 8 секунд при сохранении.'
+        );
         if (error) throw error;
         syncStatus = 'Supabase';
         lastCloudSaveAt = new Date().toLocaleTimeString();
@@ -837,13 +843,25 @@
       }
     }
 
+    function withTimeout(promise, ms, message) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms))
+      ]);
+    }
+
     async function loadStateFromSupabase() {
       try {
-        const { data, error } = await supabaseClient
-          .from('cult_states')
-          .select('data')
-          .eq('room_code', ROOM_CODE)
-          .maybeSingle();
+        if (!supabaseClient) throw new Error('Supabase client не загрузился.');
+        const { data, error } = await withTimeout(
+          supabaseClient
+            .from('cult_states')
+            .select('data')
+            .eq('room_code', ROOM_CODE)
+            .maybeSingle(),
+          SUPABASE_TIMEOUT_MS,
+          'Supabase не ответил за 8 секунд.'
+        );
 
         if (error) throw error;
 
@@ -2001,7 +2019,7 @@
     });
 
     function renderLoading() {
-      document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...</div></div>';
+      document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...<br><br>Если экран висит дольше 8 секунд, приложение откроет локальную резервную копию.</div></div>';
     }
 
     bootstrap();
