@@ -535,6 +535,60 @@
 
     .fleet-ships[open] summary::before { transform: rotate(90deg); }
 
+    .mission-compact {
+      border: 1px dashed rgba(43,36,28,0.38);
+      border-radius: 13px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .mission-compact summary {
+      cursor: pointer;
+      list-style: none;
+      display: grid;
+      grid-template-columns: minmax(130px, 1fr) minmax(140px, 1.4fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mission-compact summary::-webkit-details-marker { display: none; }
+
+    .mission-compact summary::before {
+      content: '▸';
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform 0.16s ease;
+      grid-column: 1;
+    }
+
+    .mission-compact[open] summary::before { transform: rotate(90deg); }
+
+    .mission-compact-title {
+      font-family: var(--display);
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--ink);
+      grid-column: 1;
+    }
+
+    .mission-compact-meta {
+      color: var(--ink-soft);
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .mission-compact-body {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed rgba(43,36,28,0.28);
+    }
+
+    @media (max-width: 720px) {
+      .mission-compact summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .form-grid .full { grid-column: 1 / -1; }
 
@@ -843,11 +897,8 @@
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
       hasUnsavedChanges = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-      if (cloudSaveEnabled) scheduleCloudSave();
-      if (show) {
-        saveStateToSupabase(true);
-        toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
-      }
+      if (cloudSaveEnabled) saveStateToSupabase(false);
+      if (show) toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
     }
 
     function scheduleCloudSave() {
@@ -1246,8 +1297,8 @@
           <section class="panel span-8">
             <div class="panel-head"><div><h2>Что сейчас происходит</h2><p>Активные операции, ожидающие приказы и последние рапорты.</p></div><button onclick="setTab('missions')">Новая миссия</button></div>
             <div class="split">
-              <div><h3>Активные миссии</h3><div class="list">${activeMissions().length ? activeMissions().map(renderMissionCard).join('') : empty('Сейчас культ не ведёт активных миссий.')}</div></div>
-              <div><h3>Ожидают ДМ</h3><div class="list">${pendingMissions().length ? pendingMissions().map(renderMissionCard).join('') : empty('Нет приказов, ожидающих подтверждения ДМа.')}</div></div>
+              <div><h3>Активные миссии</h3><div class="list">${activeMissions().length ? activeMissions().map(renderMissionCompact).join('') : empty('Сейчас культ не ведёт активных миссий.')}</div></div>
+              <div><h3>Ожидают ДМ</h3><div class="list">${pendingMissions().length ? pendingMissions().map(renderMissionCompact).join('') : empty('Нет приказов, ожидающих подтверждения ДМа.')}</div></div>
             </div>
           </section>
           <section class="panel span-4"><div class="panel-head"><div><h2>Свободные главари</h2><p>Доступные исполнители для новых приказов.</p></div></div><div class="list">${freeLeaders().length ? freeLeaders().map(renderLeaderMini).join('') : empty('Нет свободных главарей.')}</div></section>
@@ -1416,6 +1467,30 @@
       if (form.expectedPortfolk) form.expectedPortfolk.value = out.portfolk;
       if (form.expectedThugs) form.expectedThugs.value = out.thugs;
       if (form.expectedRich) form.expectedRich.value = out.rich;
+    }
+
+    function renderMissionCompact(m) {
+      const leader = byId('leaders', m.leaderId);
+      const sourceName = m.sourceType === 'fleet' ? nameOf('fleets', m.sourceId) : nameOf('locations', m.sourceId);
+      const pct = m.duration > 0 ? Math.max(0, Math.min(100, ((m.duration - m.remaining) / m.duration) * 100)) : 0;
+      const lastReport = m.reports?.length ? m.reports[m.reports.length - 1].text : '';
+      return `
+        <details class="mission-compact">
+          <summary>
+            <span class="mission-compact-title">${escapeHtml(m.title)}</span>
+            <span class="mission-compact-meta">${escapeHtml(m.actionType)} • ${escapeHtml(leader?.name || 'Без исполнителя')} • осталось ${m.remaining}</span>
+            ${statusChip(m.status)}
+          </summary>
+          <div class="mission-compact-body">
+            <div class="item-sub">${escapeHtml(sourceName)} • длительность ${m.duration} • тик начала: ${m.startTick ?? '—'}</div>
+            <div class="clock"><span style="width:${pct}%"></span></div>
+            ${m.outcome ? `<p class="item-sub"><strong>Ожидаемый результат:</strong> ${escapeHtml(formatOutcome(m.outcome))}</p>` : ''}
+            ${m.plan ? `<p class="item-sub"><strong>План:</strong> ${escapeHtml(m.plan)}</p>` : ''}
+            ${lastReport ? `<p class="item-sub"><strong>Последний рапорт:</strong> ${escapeHtml(lastReport)}</p>` : ''}
+            <div class="actions"><button class="small ghost" onclick="openMission('${m.id}')">Открыть</button>${m.status === 'Ожидает ДМ' ? `<button class="small danger" onclick="deletePendingMission('${m.id}')">Удалить</button>` : ''}${isDM() ? dmMissionButtons(m) : ''}</div>
+          </div>
+        </details>
+      `;
     }
 
     function renderMissionCard(m) {
