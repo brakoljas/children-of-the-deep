@@ -707,6 +707,7 @@
           <div class="storage-actions">
             <button class="small ghost" type="button" onclick="saveState(true)">Сохранить</button>
             <button class="small ghost" type="button" onclick="exportState()">Экспорт</button>
+            <button class="small ghost" type="button" onclick="forceCloudSave()">Сохранить в Supabase</button>
             <button class="small ghost" type="button" onclick="forceCloudReload()">Загрузить из Supabase</button>
             <button class="small ghost" type="button" onclick="document.getElementById('importFile').click()">Импорт</button>
             <button id="resetBtn" class="small danger hidden" type="button" onclick="confirmReset()">Сброс</button>
@@ -739,7 +740,8 @@
     const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
     const ROOM_CODE = 'DEEP-CHILDREN';
-    const SUPABASE_TIMEOUT_MS = 8000;
+    const SUPABASE_TIMEOUT_MS = 30000;
+    const SUPABASE_SAVE_RETRIES = 3;
     const SUPABASE_REST_URL = `${SUPABASE_URL}/rest/v1/cult_states`;
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
@@ -862,26 +864,43 @@
     }
 
     async function saveStateToSupabase() {
-      try {
-        app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
-        const response = await withTimeout(
-          fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
-            method: 'POST',
-            headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
-            body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() })
-          }),
-          SUPABASE_TIMEOUT_MS,
-          'Supabase не ответил за 8 секунд при сохранении.'
-        );
-        if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
-        syncStatus = 'Supabase';
-        lastCloudSaveAt = new Date().toLocaleTimeString();
-        updateSyncCard();
-      } catch (error) {
-        console.error('Supabase save error:', error);
-        syncStatus = 'Ошибка сохранения';
-        toast(`Не удалось сохранить в Supabase: ${error.message}`);
+      let lastError = null;
+      app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+
+      for (let attempt = 1; attempt <= SUPABASE_SAVE_RETRIES; attempt += 1) {
+        try {
+          syncStatus = attempt === 1 ? 'Сохранение...' : `Сохранение, попытка ${attempt}`;
+          updateSyncCard();
+
+          const response = await withTimeout(
+            fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
+              method: 'POST',
+              headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
+              body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() })
+            }),
+            SUPABASE_TIMEOUT_MS,
+            'Supabase не ответил за 30 секунд при сохранении.'
+          );
+
+          if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
+
+          syncStatus = 'Supabase';
+          lastCloudSaveAt = new Date().toLocaleTimeString();
+          updateSyncCard();
+          return true;
+        } catch (error) {
+          lastError = error;
+          console.error(`Supabase save error, attempt ${attempt}:`, error);
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        }
       }
+
+      syncStatus = 'Ошибка сохранения';
+      lastCloudSaveAt = '';
+      updateSyncCard();
+      toast(`Не удалось сохранить в Supabase: ${lastError?.message || 'неизвестная ошибка'}`);
+      return false;
     }
 
     function withTimeout(promise, ms, message) {
@@ -912,13 +931,12 @@
           const cloudTime = cloudState?.ui?.lastModifiedAt ? new Date(cloudState.ui.lastModifiedAt).getTime() : (row.updated_at ? new Date(row.updated_at).getTime() : 0);
 
           if (local?.cult && localTime > cloudTime) {
-            app = local;
+            app = cloudState;
             mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
             normalizeState();
-            syncStatus = 'Локальная копия новее';
+            syncStatus = 'Supabase, локальная копия новее';
             render();
-            await saveStateToSupabase();
-            toast('Локальная копия была новее Supabase и отправлена в базу.');
+            toast('Локальная копия новее, но база не перезаписана. Проверь данные и нажми «Сохранить» только если нужно.');
             return true;
           }
 
@@ -932,13 +950,22 @@
           return true;
         }
 
+        const local = loadState();
+        if (local?.cult) {
+          app = local;
+          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
+          normalizeState();
+          syncStatus = 'Supabase пустая, показана локальная копия';
+          render();
+          toast('В Supabase нет состояния. Показана локальная копия. Нажми «Сохранить», если хочешь записать её в базу.');
+          return false;
+        }
+
         normalizeState();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-        await saveStateToSupabase();
+        syncStatus = 'Supabase пустая, показано демо';
         render();
-        syncStatus = 'Supabase';
-        toast('Создана первая запись состояния в Supabase.');
-        return true;
+        toast('В Supabase нет состояния. Показано демо. Оно не записано в базу автоматически.');
+        return false;
       } catch (error) {
         console.error('Supabase load error:', error);
         const local = loadState();
@@ -961,6 +988,13 @@
       } catch (e) {
         return null;
       }
+    }
+
+    async function forceCloudSave() {
+      app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+      const ok = await saveStateToSupabase();
+      if (ok) toast('Принудительно сохранено в Supabase.');
     }
 
     async function forceCloudReload() {
@@ -2112,7 +2146,9 @@
     });
 
     function renderLoading() {
-      document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...<br><br>Если экран висит дольше 8 секунд, приложение откроет локальную резервную копию.</div></div>';
+      const main = document.getElementById('main');
+      if (!main) return;
+      main.innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...<br><br>Если Supabase не ответит за 30 секунд, приложение откроет локальную резервную копию.</div></div>';
     }
 
     bootstrap();
