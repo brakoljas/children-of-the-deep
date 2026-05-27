@@ -173,30 +173,29 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      background:
-        linear-gradient(180deg, rgba(222,199,159,0.95), rgba(197,170,128,0.95));
+      background: linear-gradient(180deg, rgba(222,199,159,0.96), rgba(197,170,128,0.96));
       border-bottom: 2px solid rgba(43,36,28,0.55);
       backdrop-filter: blur(8px);
-      box-shadow: 0 12px 30px rgba(39,26,13,0.12);
+      box-shadow: 0 8px 22px rgba(39,26,13,0.12);
     }
 
     .header-inner {
       max-width: 1480px;
       margin: 0 auto;
-      padding: 22px 26px 16px;
+      padding: 10px 26px;
     }
 
     .title-row {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: space-between;
       gap: 20px;
-      margin-bottom: 16px;
-      border: 1px solid rgba(43,36,28,0.52);
-      border-radius: 20px;
-      padding: 16px;
-      background: linear-gradient(180deg, rgba(247,239,223,0.66), rgba(211,190,155,0.72));
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.17), 0 8px 18px var(--shadow-soft);
+      margin-bottom: 0;
+      border: 1px solid rgba(43,36,28,0.42);
+      border-radius: 16px;
+      padding: 8px 12px;
+      background: linear-gradient(180deg, rgba(247,239,223,0.58), rgba(211,190,155,0.64));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14), 0 5px 14px var(--shadow-soft);
       position: relative;
       overflow: hidden;
     }
@@ -212,20 +211,20 @@
 
     .title-wrap {
       display: flex;
-      gap: 16px;
+      gap: 12px;
       align-items: center;
       min-width: 0;
       position: relative;
     }
 
     .sigil {
-      width: 110px;
-      height: 110px;
-      flex: 0 0 110px;
-      border-radius: 18px;
+      width: 58px;
+      height: 58px;
+      flex: 0 0 58px;
+      border-radius: 12px;
       border: 2px solid var(--line-strong);
       background: rgba(255,255,255,0.08);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 8px 18px var(--shadow-soft);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18), 0 5px 12px var(--shadow-soft);
       position: relative;
       overflow: hidden;
       padding: 0;
@@ -262,33 +261,29 @@
       font-family: var(--stamp);
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      font-size: 12px;
+      font-size: 10px;
       color: var(--ink-soft);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .title h1 {
       margin: 0;
       font-family: var(--display);
-      font-size: clamp(32px, 4vw, 52px);
+      font-size: clamp(26px, 3vw, 38px);
       line-height: 0.95;
       letter-spacing: 0.01em;
       color: var(--ink);
     }
 
     .title p {
-      margin: 8px 0 0;
-      color: var(--ink-soft);
-      max-width: 840px;
-      line-height: 1.42;
-      font-size: 18px;
+      display: none;
     }
 
     .mode-box {
-      min-width: 260px;
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       align-items: flex-end;
       position: relative;
     }
@@ -303,10 +298,11 @@
     }
 
     .mode-pill button {
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-color: transparent;
       background: transparent;
       color: var(--ink-soft);
+      font-size: 16px;
     }
 
     .mode-pill button.active {
@@ -315,11 +311,21 @@
       border-color: rgba(22,39,39,0.95);
     }
 
-    .storage-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .storage-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .storage-actions button.small { padding: 6px 9px; font-size: 14px; }
+
+    .resource-strip {
+      max-width: 1480px;
+      margin: 18px auto 0;
+      padding: 0 26px;
+      position: relative;
+      z-index: 1;
+    }
 
     .resource-row {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -327,8 +333,8 @@
       background: linear-gradient(180deg, rgba(250,243,230,0.72), rgba(210,188,151,0.84));
       border: 1px solid rgba(43,36,28,0.52);
       border-radius: 16px;
-      padding: 12px;
-      min-height: 84px;
+      padding: 10px 12px;
+      min-height: 76px;
       box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), 0 8px 18px rgba(43,29,15,0.08);
     }
 
@@ -343,7 +349,7 @@
 
     .resource-card .v {
       font-family: var(--display);
-      font-size: 30px;
+      font-size: 28px;
       font-weight: 700;
       letter-spacing: 0.01em;
       color: var(--ink);
@@ -659,18 +665,19 @@
     ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(67,59,48,0.72), rgba(40,35,29,0.72)); border-radius: 999px; border: 2px solid rgba(214,193,154,0.65); }
 
     @media (max-width: 1100px) {
-      .resource-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .resource-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .span-8, .span-7, .span-6, .span-5, .span-4, .span-3 { grid-column: span 12; }
       .split { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 720px) {
-      .title-row { flex-direction: column; }
-      .title-wrap { align-items: flex-start; }
-      .sigil { width: 78px; height: 78px; flex-basis: 78px; }
+      .title-row { flex-direction: column; align-items: stretch; }
+      .title-wrap { align-items: center; }
+      .sigil { width: 52px; height: 52px; flex-basis: 52px; }
       .mode-box { align-items: stretch; min-width: 0; width: 100%; }
       .storage-actions { justify-content: flex-start; }
       .resource-row { grid-template-columns: 1fr; }
+      .resource-strip { padding-left: 14px; padding-right: 14px; margin-top: 12px; }
       .form-grid { grid-template-columns: 1fr; }
       .header-inner, .tabs, main { padding-left: 14px; padding-right: 14px; }
       .tab-btn { width: 100%; }
@@ -679,37 +686,12 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="header-inner">
-      <div class="title-row">
-        <div class="title-wrap">
-          <label class="sigil" title="Загрузить PNG-эмблему">
-            <input id="sigilUpload" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadSigil(event)" />
-            <img id="sigilImage" src="" alt="" class="sigil-image hidden" />
-            <span id="sigilPlaceholder" class="sigil-placeholder">PNG</span>
-          </label>
-          <div class="title">
-            <div class="eyebrow">Судовой журнал Айзека</div>
-            <h1>Дети глубины</h1>
-          </div>
-        </div>
-        <div class="mode-box">
-          <div class="mode-pill">
-            <button id="playerModeBtn" type="button">Игрок</button>
-            <button id="dmModeBtn" type="button">ДМ</button>
-          </div>
-          <div class="storage-actions">
-            <button class="small ghost" type="button" onclick="saveState(true)">Сохранить</button>
-            <button class="small ghost" type="button" onclick="exportState()">Экспорт</button>
-            <button class="small ghost" type="button" onclick="forceCloudReload()">Загрузить из Supabase</button>
-            <button class="small ghost" type="button" onclick="document.getElementById('importFile').click()">Импорт</button>
-            <button id="resetBtn" class="small danger hidden" type="button" onclick="confirmReset()">Сброс</button>
-            <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importState(event)" />
-          </div>
-        </div>
-      </div>
-      <div id="resourceRow" class="resource-row"></div>
-    </div>
+    <div class="header-inner">$1</div>
   </header>
+
+  <section class="resource-strip">
+    <div id="resourceRow" class="resource-row"></div>
+  </section>
 
   <nav class="tabs" id="tabs"></nav>
   <main id="main"></main>
