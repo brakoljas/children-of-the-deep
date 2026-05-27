@@ -1696,7 +1696,7 @@
         <div class="grid">
           <section class="panel span-8"><div class="panel-head"><div><h2>Флоты</h2><p>Контейнеры кораблей под командованием капитанов. Всего кораблей: ${app.ships.length}</p></div><button onclick="openFleetForm()">Создать флот</button></div><div class="chips"><span class="chip blue">Всего флотов: ${app.fleets.length}</span><span class="chip blue">Всего кораблей: ${app.ships.length}</span><span class="chip">Свободных кораблей: ${app.ships.filter(s => !s.fleetId).length}</span></div><div class="list">${app.fleets.length ? app.fleets.map(renderFleetCard).join('') : empty('У культа пока нет флотов. Создай первый флот или добавь корабль.')}</div></section>
           <section class="panel span-4"><div class="panel-head"><div><h2>Корабли без флота</h2><p>Суда, ожидающие приписки.</p></div><button onclick="openShipForm()">Добавить корабль</button></div><div class="list">${app.ships.filter(s => !s.fleetId).map(renderShipMini).join('') || empty('Нет свободных кораблей.')}</div></section>
-          <section class="panel span-12"><div class="panel-head"><div><h2>Все корабли</h2><p>Полный реестр судов культа.</p></div></div><div class="grid">${app.ships.map(s => `<div class="span-4">${renderShipMini(s)}</div>`).join('') || empty('Кораблей пока нет.')}</div></section>
+          <section class="panel span-12"><div class="panel-head"><div><h2>Все корабли</h2><p>Полный реестр судов культа. Всего кораблей: ${app.ships.length}</p></div><div class="chips"><span class="chip blue">Всего кораблей: ${app.ships.length}</span></div></div><div class="grid">${app.ships.map(s => `<div class="span-4">${renderShipMini(s)}</div>`).join('') || empty('Кораблей пока нет.')}</div></section>
         </div>
       `;
     }
