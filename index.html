@@ -1071,8 +1071,14 @@
     }
 
     function renderHeader() {
-      const sigilImage = document.getElementById('sigilImage');
-      const sigilPlaceholder = document.getElementById('sigilPlaceholder');
+      const getEl = (id) => document.getElementById(id);
+      const sigilImage = getEl('sigilImage');
+      const sigilPlaceholder = getEl('sigilPlaceholder');
+      const playerModeBtn = getEl('playerModeBtn');
+      const dmModeBtn = getEl('dmModeBtn');
+      const resetBtn = getEl('resetBtn');
+      const resourceRow = getEl('resourceRow');
+
       if (sigilImage && sigilPlaceholder) {
         if (app.ui?.sigilImage) {
           sigilImage.src = app.ui.sigilImage;
@@ -1084,12 +1090,27 @@
           sigilPlaceholder.classList.remove('hidden');
         }
       }
-      document.getElementById('playerModeBtn').classList.toggle('active', mode === 'player');
-      document.getElementById('dmModeBtn').classList.toggle('active', mode === 'dm');
-      document.getElementById('playerModeBtn').onclick = () => setMode('player');
-      document.getElementById('dmModeBtn').onclick = () => setMode('dm');
-      document.getElementById('resetBtn').classList.toggle('hidden', !isDM());
-      document.getElementById('resourceRow').innerHTML = `
+
+      if (playerModeBtn) {
+        playerModeBtn.classList.toggle('active', mode === 'player');
+        playerModeBtn.onclick = () => setMode('player');
+      }
+
+      if (dmModeBtn) {
+        dmModeBtn.classList.toggle('active', mode === 'dm');
+        dmModeBtn.onclick = () => setMode('dm');
+      }
+
+      if (resetBtn) {
+        resetBtn.classList.toggle('hidden', !isDM());
+      }
+
+      if (!resourceRow) {
+        console.warn('resourceRow element not found. Header resources were not rendered.');
+        return;
+      }
+
+      resourceRow.innerHTML = `
         ${resourceCard('Текущий тик', 'currentTick', app.cult.currentTick, 1, 999)}
         ${resourceCard('Богатство', 'wealth', app.cult.wealth, 1, 100)}
         ${resourceCard('Благосклонность', 'favor', app.cult.favor, 0, 20)}
