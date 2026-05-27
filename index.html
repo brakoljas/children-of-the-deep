@@ -745,7 +745,6 @@
     const SUPABASE_REST_URL = `${SUPABASE_URL}/rest/v1/cult_states`;
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
-    let autoSaveInterval = null;
     let hasUnsavedChanges = false;
     let syncStatus = 'Загрузка...';
     let lastCloudSaveAt = '';
@@ -2127,14 +2126,7 @@
       renderLoading();
       const loaded = await loadStateFromSupabase();
       cloudSaveEnabled = loaded;
-      startAutoSave();
-    }
-
-    function startAutoSave() {
-      clearInterval(autoSaveInterval);
-      autoSaveInterval = setInterval(() => {
-        if (cloudSaveEnabled && hasUnsavedChanges) saveStateToSupabase(false);
-      }, 15000);
+      
     }
 
     window.addEventListener('beforeunload', () => {
