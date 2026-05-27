@@ -763,9 +763,9 @@
     };
 
 
-    let app = loadState() || demoState();
+    let app = demoState();
     let currentTab = 'overview';
-    let mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
+    let mode = 'player';
 
     function uid(prefix) {
       return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -827,7 +827,7 @@
       app.ui = { ...(app.ui || {}), mode };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       if (cloudSaveEnabled) scheduleCloudSave();
-      if (show) toast('Состояние сохранено в браузере и отправлено в Supabase.');
+      if (show) toast(cloudSaveEnabled ? 'Состояние сохранено в Supabase.' : 'Состояние сохранено локально.');
     }
 
     function scheduleCloudSave() {
@@ -860,18 +860,31 @@
 
         if (data?.data?.cult) {
           app = data.data;
-          mode = app.ui?.mode || 'player';
+          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
           normalizeState();
           localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
           render();
           toast('Состояние загружено из Supabase.');
-        } else {
-          await saveStateToSupabase();
-          toast('Создана первая запись состояния в Supabase.');
+          return true;
         }
+
+        normalizeState();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+        await saveStateToSupabase();
+        render();
+        toast('Создана первая запись состояния в Supabase.');
+        return true;
       } catch (error) {
         console.error('Supabase load error:', error);
+        const local = loadState();
+        if (local) {
+          app = local;
+          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
+          normalizeState();
+        }
+        render();
         toast('Не удалось загрузить Supabase. Используется локальная копия.');
+        return false;
       }
     }
 
@@ -1039,7 +1052,6 @@
       if (currentTab === 'visions') main.innerHTML = renderVisions();
       if (currentTab === 'chronicle') main.innerHTML = renderChronicle();
       if (currentTab === 'dm') main.innerHTML = isDM() ? renderDM() : '<div class="panel"><div class="empty">Вкладка ДМ доступна только в режиме ДМ.</div></div>';
-      saveState(false);
     }
 
     function renderHeader() {
@@ -1968,10 +1980,17 @@
       window.__toastTimer = setTimeout(() => el.classList.remove('show'), 2300);
     }
 
-    normalizeState();
-    render();
-    cloudSaveEnabled = true;
-    loadStateFromSupabase();
+    async function bootstrap() {
+      renderLoading();
+      const loaded = await loadStateFromSupabase();
+      cloudSaveEnabled = loaded;
+    }
+
+    function renderLoading() {
+      document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...</div></div>';
+    }
+
+    bootstrap();
   </script>
 </body>
 </html>
