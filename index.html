@@ -546,7 +546,7 @@
       cursor: pointer;
       list-style: none;
       display: grid;
-      grid-template-columns: minmax(130px, 1fr) minmax(140px, 1.4fr) auto;
+      grid-template-columns: 18px minmax(130px, 1fr) minmax(140px, 1.4fr) auto;
       align-items: center;
       gap: 8px;
     }
@@ -555,10 +555,13 @@
 
     .mission-compact summary::before {
       content: '▸';
-      display: inline-block;
-      margin-right: 8px;
+      display: block;
+      width: 18px;
+      text-align: center;
       transition: transform 0.16s ease;
       grid-column: 1;
+      grid-row: 1;
+      align-self: center;
     }
 
     .mission-compact[open] summary::before { transform: rotate(90deg); }
@@ -568,13 +571,16 @@
       font-size: 19px;
       font-weight: 700;
       color: var(--ink);
-      grid-column: 1;
+      grid-column: 2;
+      grid-row: 1;
     }
 
     .mission-compact-meta {
       color: var(--ink-soft);
       font-size: 15px;
       line-height: 1.2;
+      grid-column: 3;
+      grid-row: 1;
     }
 
     .mission-compact-body {
@@ -585,7 +591,13 @@
 
     @media (max-width: 720px) {
       .mission-compact summary {
-        grid-template-columns: 1fr;
+        grid-template-columns: 18px 1fr;
+      }
+      .mission-compact-title {
+        grid-column: 2;
+      }
+      .mission-compact-meta {
+        grid-column: 2;
       }
     }
 
