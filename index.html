@@ -946,6 +946,9 @@
         ship.thugs = Number(ship.thugs ?? 0);
         delete ship.crew;
       });
+      app.locations.forEach(loc => {
+        loc.tier = locationTier(loc);
+      });
       app.missions.forEach(mission => {
         mission.expectedResult = mission.expectedResult || '';
         mission.reports = mission.reports || [];
@@ -967,14 +970,17 @@
     function totalFollowers(loc) { return (+loc.sailors || 0) + (+loc.acolytes || 0) + (+loc.portfolk || 0) + (+loc.thugs || 0) + (+loc.rich || 0); }
     function shipFollowers(ship) { return (+ship.sailors || 0) + (+ship.thugs || 0); }
     function totalAllFollowers() { return app.locations.reduce((s, l) => s + totalFollowers(l), 0) + app.ships.reduce((s, ship) => s + shipFollowers(ship), 0); }
-    function leaderCapacity(loc) {
+    function locationTier(loc) {
       const n = totalFollowers(loc);
-      if (n <= 0) return 0;
       if (n <= 100) return 1;
       if (n <= 300) return 2;
       if (n <= 600) return 3;
       if (n <= 1000) return 4;
       return 5;
+    }
+
+    function leaderCapacity(loc) {
+      return locationTier(loc);
     }
 
     function byId(collection, id) { return app[collection].find(x => x.id === id); }
@@ -1577,6 +1583,7 @@
         loc.portfolk = Math.max(0, (+loc.portfolk || 0) + out.portfolk);
         loc.thugs = Math.max(0, (+loc.thugs || 0) + out.thugs);
         loc.rich = Math.max(0, (+loc.rich || 0) + out.rich);
+        loc.tier = locationTier(loc);
       }
       releaseMissionActors(m);
       if (!['Завершена','Провалена','Отменена'].includes(oldStatus)) addMissionToChronicle(m);
@@ -1687,7 +1694,7 @@
     function renderFleets() {
       return `
         <div class="grid">
-          <section class="panel span-8"><div class="panel-head"><div><h2>Флоты</h2><p>Контейнеры кораблей под командованием капитанов.</p></div><button onclick="openFleetForm()">Создать флот</button></div><div class="list">${app.fleets.length ? app.fleets.map(renderFleetCard).join('') : empty('У культа пока нет флотов. Создай первый флот или добавь корабль.')}</div></section>
+          <section class="panel span-8"><div class="panel-head"><div><h2>Флоты</h2><p>Контейнеры кораблей под командованием капитанов. Всего кораблей: ${app.ships.length}</p></div><button onclick="openFleetForm()">Создать флот</button></div><div class="chips"><span class="chip blue">Всего флотов: ${app.fleets.length}</span><span class="chip blue">Всего кораблей: ${app.ships.length}</span><span class="chip">Свободных кораблей: ${app.ships.filter(s => !s.fleetId).length}</span></div><div class="list">${app.fleets.length ? app.fleets.map(renderFleetCard).join('') : empty('У культа пока нет флотов. Создай первый флот или добавь корабль.')}</div></section>
           <section class="panel span-4"><div class="panel-head"><div><h2>Корабли без флота</h2><p>Суда, ожидающие приписки.</p></div><button onclick="openShipForm()">Добавить корабль</button></div><div class="list">${app.ships.filter(s => !s.fleetId).map(renderShipMini).join('') || empty('Нет свободных кораблей.')}</div></section>
           <section class="panel span-12"><div class="panel-head"><div><h2>Все корабли</h2><p>Полный реестр судов культа.</p></div></div><div class="grid">${app.ships.map(s => `<div class="span-4">${renderShipMini(s)}</div>`).join('') || empty('Кораблей пока нет.')}</div></section>
         </div>
@@ -1697,7 +1704,7 @@
     function renderFleetCard(f) {
       const ships = shipsInFleet(f.id);
       const crew = ships.reduce((s, x) => s + shipFollowers(x), 0);
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(f.name)}</div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><details class="fleet-ships">
+      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(f.name)} <span class="chip blue">Кораблей: ${ships.length}</span></div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><details class="fleet-ships">
           <summary>Корабли флота: ${ships.length} • Экипаж: ${crew}</summary>
           <div class="list" style="margin-top:10px;">${ships.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>
         </details>${f.playerNotes ? `<p class="item-sub">${escapeHtml(f.playerNotes)}</p>` : ''}${isDM() && f.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(f.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openFleetForm('${f.id}')">Редактировать</button><button class="small" onclick="prefillMission('fleet','${f.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('fleets','${f.id}')">Удалить</button></div></div>`;
@@ -1759,14 +1766,14 @@
       const cap = leaderCapacity(l);
       const assigned = leadersForLocation(l.id);
       const dangerCls = l.infamy >= 8 ? 'danger-level-2' : l.infamy >= 4 ? 'danger-level-1' : 'danger-level-0';
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${l.tier}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
+      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${locationTier(l)}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
     }
 
     function renderLocationMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="chips"><span class="chip danger">Дурная слава ${l.infamy}/10</span><span class="chip">${escapeHtml(l.type)}</span></div></div>`; }
 
     function openLocationForm(id = '') {
       const l = id ? byId('locations', id) : { name:'', type:'Городская ячейка', tier:1, sailors:0, acolytes:0, portfolk:0, thugs:0, rich:0, infamy:0, status:'Активна', infrastructure:'', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать локацию' : 'Добавить локацию', `<form onsubmit="saveLocation(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type">${optionList(locationTypes, l.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(locationStatuses, l.status)}</select></div><div><label>Тир</label><input name="tier" type="number" min="1" max="3" value="${l.tier}" ${isDM() ? '' : 'readonly'} /></div><div><label>Дурная слава</label><input name="infamy" type="number" min="0" max="10" value="${l.infamy}" ${isDM() ? '' : 'readonly'} /></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${l.sailors}" ${isDM() ? '' : 'readonly'} /></div><div><label>Послушники</label><input name="acolytes" type="number" min="0" value="${l.acolytes}" ${isDM() ? '' : 'readonly'} /></div><div><label>Работяги</label><input name="portfolk" type="number" min="0" value="${l.portfolk}" ${isDM() ? '' : 'readonly'} /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${l.thugs}" ${isDM() ? '' : 'readonly'} /></div><div><label>Богачи</label><input name="rich" type="number" min="0" value="${l.rich}" ${isDM() ? '' : 'readonly'} /></div><div class="full"><label>Инфраструктура</label><textarea name="infrastructure">${escapeHtml(l.infrastructure)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать локацию' : 'Добавить локацию', `<form onsubmit="saveLocation(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type">${optionList(locationTypes, l.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(locationStatuses, l.status)}</select></div><div><label>Тир</label><input name="tier" type="number" min="1" max="5" value="${locationTier(l)}" readonly /></div><div><label>Дурная слава</label><input name="infamy" type="number" min="0" max="10" value="${l.infamy}" ${isDM() ? '' : 'readonly'} /></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${l.sailors}" ${isDM() ? '' : 'readonly'} /></div><div><label>Послушники</label><input name="acolytes" type="number" min="0" value="${l.acolytes}" ${isDM() ? '' : 'readonly'} /></div><div><label>Работяги</label><input name="portfolk" type="number" min="0" value="${l.portfolk}" ${isDM() ? '' : 'readonly'} /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${l.thugs}" ${isDM() ? '' : 'readonly'} /></div><div><label>Богачи</label><input name="rich" type="number" min="0" value="${l.rich}" ${isDM() ? '' : 'readonly'} /></div><div class="full"><label>Инфраструктура</label><textarea name="infrastructure">${escapeHtml(l.infrastructure)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
     }
 
     function saveLocation(event, id) {
@@ -1779,7 +1786,7 @@
       obj.playerNotes = f.playerNotes.value;
       if (isDM()) {
         obj.status = f.status.value;
-        obj.tier = Number(f.tier.value);
+        obj.tier = locationTier(obj);
         obj.infamy = Number(f.infamy.value);
         obj.sailors = Number(f.sailors.value);
         obj.acolytes = Number(f.acolytes.value);
@@ -1789,7 +1796,7 @@
         obj.dmNotes = f.dmNotes?.value || '';
       } else {
         obj.status = obj.status || 'Активна';
-        obj.tier = obj.tier || 1;
+        obj.tier = locationTier(obj);
         obj.infamy = obj.infamy || 0;
         obj.sailors = obj.sailors || 0;
         obj.acolytes = obj.acolytes || 0;
