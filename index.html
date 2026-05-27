@@ -686,7 +686,35 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="header-inner">$1</div>
+    <div class="header-inner">
+      <div class="title-row">
+        <div class="title-wrap">
+          <label class="sigil" title="Загрузить PNG-эмблему">
+            <input id="sigilUpload" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="uploadSigil(event)" />
+            <img id="sigilImage" src="" alt="" class="sigil-image hidden" />
+            <span id="sigilPlaceholder" class="sigil-placeholder">PNG</span>
+          </label>
+          <div class="title">
+            <div class="eyebrow">Судовой журнал Айзека</div>
+            <h1>Дети глубины</h1>
+          </div>
+        </div>
+        <div class="mode-box">
+          <div class="mode-pill">
+            <button id="playerModeBtn" type="button">Игрок</button>
+            <button id="dmModeBtn" type="button">ДМ</button>
+          </div>
+          <div class="storage-actions">
+            <button class="small ghost" type="button" onclick="saveState(true)">Сохранить</button>
+            <button class="small ghost" type="button" onclick="exportState()">Экспорт</button>
+            <button class="small ghost" type="button" onclick="forceCloudReload()">Загрузить из Supabase</button>
+            <button class="small ghost" type="button" onclick="document.getElementById('importFile').click()">Импорт</button>
+            <button id="resetBtn" class="small danger hidden" type="button" onclick="confirmReset()">Сброс</button>
+            <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importState(event)" />
+          </div>
+        </div>
+      </div>
+    </div>
   </header>
 
   <section class="resource-strip">
