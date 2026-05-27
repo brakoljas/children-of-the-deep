@@ -501,6 +501,34 @@
 
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 
+    .fleet-ships {
+      margin-top: 10px;
+      border: 1px dashed rgba(43,36,28,0.38);
+      border-radius: 13px;
+      padding: 8px 10px;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .fleet-ships summary {
+      cursor: pointer;
+      font-family: var(--display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      list-style: none;
+    }
+
+    .fleet-ships summary::-webkit-details-marker { display: none; }
+
+    .fleet-ships summary::before {
+      content: '▸';
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform 0.16s ease;
+    }
+
+    .fleet-ships[open] summary::before { transform: rotate(90deg); }
+
     .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .form-grid .full { grid-column: 1 / -1; }
 
@@ -1669,7 +1697,10 @@
     function renderFleetCard(f) {
       const ships = shipsInFleet(f.id);
       const crew = ships.reduce((s, x) => s + shipFollowers(x), 0);
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(f.name)}</div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><div class="list">${ships.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>${f.playerNotes ? `<p class="item-sub">${escapeHtml(f.playerNotes)}</p>` : ''}${isDM() && f.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(f.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openFleetForm('${f.id}')">Редактировать</button><button class="small" onclick="prefillMission('fleet','${f.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('fleets','${f.id}')">Удалить</button></div></div>`;
+      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(f.name)}</div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><details class="fleet-ships">
+          <summary>Корабли флота: ${ships.length} • Экипаж: ${crew}</summary>
+          <div class="list" style="margin-top:10px;">${ships.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>
+        </details>${f.playerNotes ? `<p class="item-sub">${escapeHtml(f.playerNotes)}</p>` : ''}${isDM() && f.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(f.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openFleetForm('${f.id}')">Редактировать</button><button class="small" onclick="prefillMission('fleet','${f.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('fleets','${f.id}')">Удалить</button></div></div>`;
     }
 
     function renderFleetMini(f) { return `<div class="item"><div class="item-title">${escapeHtml(f.name)}</div><div class="chips">${statusChip(f.status)}<span class="chip">${escapeHtml(nameOf('leaders', f.captainId))}</span></div></div>`; }
