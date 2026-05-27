@@ -746,6 +746,7 @@
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
     let autoSaveInterval = null;
+    let hasUnsavedChanges = false;
     let syncStatus = 'Загрузка...';
     let lastCloudSaveAt = '';
 
@@ -841,10 +842,11 @@
 
     function saveState(show = false) {
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      hasUnsavedChanges = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       if (cloudSaveEnabled) scheduleCloudSave();
       if (show) {
-        saveStateToSupabase();
+        saveStateToSupabase(true);
         toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
       }
     }
@@ -863,9 +865,11 @@
       };
     }
 
-    async function saveStateToSupabase() {
+    async function saveStateToSupabase(force = false) {
+      if (!force && !hasUnsavedChanges) return true;
       let lastError = null;
-      app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
+      if (force) app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      else app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
 
       for (let attempt = 1; attempt <= SUPABASE_SAVE_RETRIES; attempt += 1) {
@@ -887,6 +891,7 @@
 
           syncStatus = 'Supabase';
           lastCloudSaveAt = new Date().toLocaleTimeString();
+          hasUnsavedChanges = false;
           updateSyncCard();
           return true;
         } catch (error) {
@@ -946,6 +951,7 @@
           localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
           render();
           syncStatus = 'Supabase';
+          hasUnsavedChanges = false;
           toast('Состояние загружено из Supabase.');
           return true;
         }
@@ -992,8 +998,9 @@
 
     async function forceCloudSave() {
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      hasUnsavedChanges = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-      const ok = await saveStateToSupabase();
+      const ok = await saveStateToSupabase(true);
       if (ok) toast('Принудительно сохранено в Supabase.');
     }
 
@@ -2126,7 +2133,7 @@
     function startAutoSave() {
       clearInterval(autoSaveInterval);
       autoSaveInterval = setInterval(() => {
-        if (cloudSaveEnabled) saveStateToSupabase();
+        if (cloudSaveEnabled && hasUnsavedChanges) saveStateToSupabase(false);
       }, 15000);
     }
 
@@ -2134,7 +2141,7 @@
       try {
         app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-        if (cloudSaveEnabled) {
+        if (cloudSaveEnabled && hasUnsavedChanges) {
           fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
             method: 'POST',
             headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
