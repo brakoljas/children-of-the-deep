@@ -873,7 +873,7 @@
         if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
         syncStatus = 'Supabase';
         lastCloudSaveAt = new Date().toLocaleTimeString();
-        render();
+        updateSyncCard();
       } catch (error) {
         console.error('Supabase save error:', error);
         syncStatus = 'Ошибка сохранения';
@@ -1107,6 +1107,13 @@
       if (currentTab === 'dm') main.innerHTML = isDM() ? renderDM() : '<div class="panel"><div class="empty">Вкладка ДМ доступна только в режиме ДМ.</div></div>';
     }
 
+    function updateSyncCard() {
+      const syncValue = document.getElementById('syncStatusValue');
+      const syncMeta = document.getElementById('syncStatusMeta');
+      if (syncValue) syncValue.textContent = syncStatus;
+      if (syncMeta) syncMeta.textContent = `${ROOM_CODE}${lastCloudSaveAt ? ` • ${lastCloudSaveAt}` : ''}`;
+    }
+
     function renderHeader() {
       const getEl = (id) => document.getElementById(id);
       const sigilImage = getEl('sigilImage');
@@ -1153,7 +1160,7 @@
         ${resourceCard('Благосклонность', 'favor', app.cult.favor, 0, 20)}
         <div class="resource-card"><div class="k">Последователи</div><div class="v">${totalAllFollowers()}</div></div>
         ${resourceCard('Дней в тике', 'daysPerTick', app.cult.daysPerTick, 1, 30)}
-        <div class="resource-card"><div class="k">Синхронизация</div><div class="v" style="font-size:18px;">${escapeHtml(syncStatus)}</div><div class="item-sub">${escapeHtml(ROOM_CODE)}${lastCloudSaveAt ? ` • ${escapeHtml(lastCloudSaveAt)}` : ''}</div></div>
+        <div class="resource-card"><div class="k">Синхронизация</div><div id="syncStatusValue" class="v" style="font-size:18px;">${escapeHtml(syncStatus)}</div><div id="syncStatusMeta" class="item-sub">${escapeHtml(ROOM_CODE)}${lastCloudSaveAt ? ` • ${escapeHtml(lastCloudSaveAt)}` : ''}</div></div>
       `;
     }
 
