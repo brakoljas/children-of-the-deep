@@ -838,10 +838,13 @@
     }
 
     function saveState(show = false) {
-      app.ui = { ...(app.ui || {}), mode };
+      app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       if (cloudSaveEnabled) scheduleCloudSave();
-      if (show) toast(cloudSaveEnabled ? 'Состояние сохранено в Supabase.' : 'Состояние сохранено локально.');
+      if (show) {
+        saveStateToSupabase();
+        toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
+      }
     }
 
     function scheduleCloudSave() {
@@ -860,7 +863,7 @@
 
     async function saveStateToSupabase() {
       try {
-        app.ui = { ...(app.ui || {}), mode };
+        app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
         const response = await withTimeout(
           fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
             method: 'POST',
@@ -891,7 +894,7 @@
     async function loadStateFromSupabase() {
       try {
         const response = await withTimeout(
-          fetch(`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&select=data`, {
+          fetch(`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&select=data,updated_at`, {
             method: 'GET',
             headers: supabaseHeaders()
           }),
@@ -903,7 +906,23 @@
         const row = Array.isArray(rows) ? rows[0] : null;
 
         if (row?.data?.cult) {
-          app = row.data;
+          const local = loadState();
+          const cloudState = row.data;
+          const localTime = local?.ui?.lastModifiedAt ? new Date(local.ui.lastModifiedAt).getTime() : 0;
+          const cloudTime = cloudState?.ui?.lastModifiedAt ? new Date(cloudState.ui.lastModifiedAt).getTime() : (row.updated_at ? new Date(row.updated_at).getTime() : 0);
+
+          if (local?.cult && localTime > cloudTime) {
+            app = local;
+            mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
+            normalizeState();
+            syncStatus = 'Локальная копия новее';
+            render();
+            await saveStateToSupabase();
+            toast('Локальная копия была новее Supabase и отправлена в базу.');
+            return true;
+          }
+
+          app = cloudState;
           mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
           normalizeState();
           localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
@@ -2079,8 +2098,16 @@
 
     window.addEventListener('beforeunload', () => {
       try {
-        app.ui = { ...(app.ui || {}), mode };
+        app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+        if (cloudSaveEnabled) {
+          fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
+            method: 'POST',
+            headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
+            body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }),
+            keepalive: true
+          });
+        }
       } catch (error) {}
     });
 
