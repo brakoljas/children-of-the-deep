@@ -700,6 +700,7 @@
           <div class="storage-actions">
             <button class="small ghost" type="button" onclick="saveState(true)">Сохранить</button>
             <button class="small ghost" type="button" onclick="exportState()">Экспорт</button>
+            <button class="small ghost" type="button" onclick="forceCloudReload()">Загрузить из Supabase</button>
             <button class="small ghost" type="button" onclick="document.getElementById('importFile').click()">Импорт</button>
             <button id="resetBtn" class="small danger hidden" type="button" onclick="confirmReset()">Сброс</button>
             <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importState(event)" />
@@ -732,6 +733,9 @@
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
+    let autoSaveInterval = null;
+    let syncStatus = 'Загрузка...';
+    let lastCloudSaveAt = '';
 
     const tabs = [
       ['overview', 'Обзор'],
@@ -842,6 +846,9 @@
           .from('cult_states')
           .upsert({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }, { onConflict: 'room_code' });
         if (error) throw error;
+        syncStatus = 'Supabase';
+        lastCloudSaveAt = new Date().toLocaleTimeString();
+        render();
       } catch (error) {
         console.error('Supabase save error:', error);
         toast('Не удалось сохранить в Supabase. Локальная копия сохранена.');
@@ -864,6 +871,7 @@
           normalizeState();
           localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
           render();
+          syncStatus = 'Supabase';
           toast('Состояние загружено из Supabase.');
           return true;
         }
@@ -872,6 +880,7 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
         await saveStateToSupabase();
         render();
+        syncStatus = 'Supabase';
         toast('Создана первая запись состояния в Supabase.');
         return true;
       } catch (error) {
@@ -883,6 +892,7 @@
           normalizeState();
         }
         render();
+        syncStatus = 'Локальная копия';
         toast('Не удалось загрузить Supabase. Используется локальная копия.');
         return false;
       }
@@ -895,6 +905,12 @@
       } catch (e) {
         return null;
       }
+    }
+
+    async function forceCloudReload() {
+      const ok = await loadStateFromSupabase();
+      cloudSaveEnabled = ok;
+      if (ok) toast('Принудительно загружено из Supabase.');
     }
 
     function uploadSigil(event) {
@@ -1079,6 +1095,7 @@
         ${resourceCard('Благосклонность', 'favor', app.cult.favor, 0, 20)}
         <div class="resource-card"><div class="k">Последователи</div><div class="v">${totalAllFollowers()}</div></div>
         ${resourceCard('Дней в тике', 'daysPerTick', app.cult.daysPerTick, 1, 30)}
+        <div class="resource-card"><div class="k">Синхронизация</div><div class="v" style="font-size:18px;">${escapeHtml(syncStatus)}</div><div class="item-sub">${escapeHtml(ROOM_CODE)}${lastCloudSaveAt ? ` • ${escapeHtml(lastCloudSaveAt)}` : ''}</div></div>
       `;
     }
 
@@ -1984,7 +2001,22 @@
       renderLoading();
       const loaded = await loadStateFromSupabase();
       cloudSaveEnabled = loaded;
+      startAutoSave();
     }
+
+    function startAutoSave() {
+      clearInterval(autoSaveInterval);
+      autoSaveInterval = setInterval(() => {
+        if (cloudSaveEnabled) saveStateToSupabase();
+      }, 15000);
+    }
+
+    window.addEventListener('beforeunload', () => {
+      try {
+        app.ui = { ...(app.ui || {}), mode };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+      } catch (error) {}
+    });
 
     function renderLoading() {
       document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...</div></div>';
