@@ -1819,7 +1819,7 @@
       return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>${statusChip(l.status)}</div><div class="chips"><span class="chip">Миссия: ${escapeHtml(nameOf('missions', l.currentMissionId, '—'))}</span></div>${l.description ? `<p class="item-sub">${escapeHtml(l.description)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLeaderForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('leaders','${l.id}')">Удалить</button></div></div>`;
     }
 
-    function renderLeaderMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>`; }
+    function renderLeaderMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div><div class="actions"><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button></div></div>`; }
     function assignmentName(l) { return l.type === 'Капитан флота' ? nameOf('fleets', l.assignmentId, 'Резерв') : nameOf('locations', l.assignmentId, 'Без локации'); }
 
     function openLeaderForm(id = '') {
