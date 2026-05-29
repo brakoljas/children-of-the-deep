@@ -812,6 +812,8 @@
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
     let hasUnsavedChanges = false;
+    let saveInProgress = false;
+    let saveQueued = false;
     let syncStatus = 'Загрузка...';
     let lastCloudSaveAt = '';
 
@@ -921,7 +923,6 @@
     function supabaseHeaders(extra = {}) {
       return {
         apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
         'Content-Type': 'application/json',
         ...extra
       };
@@ -929,45 +930,64 @@
 
     async function saveStateToSupabase(force = false) {
       if (!force && !hasUnsavedChanges) return true;
-      let lastError = null;
-      if (force) app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
-      else app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
 
-      for (let attempt = 1; attempt <= SUPABASE_SAVE_RETRIES; attempt += 1) {
-        try {
-          syncStatus = attempt === 1 ? 'Сохранение...' : `Сохранение, попытка ${attempt}`;
-          updateSyncCard();
-
-          const response = await withTimeout(
-            fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
-              method: 'POST',
-              headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
-              body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() })
-            }),
-            SUPABASE_TIMEOUT_MS,
-            'Supabase не ответил за 30 секунд при сохранении.'
-          );
-
-          if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
-
-          syncStatus = 'Supabase';
-          lastCloudSaveAt = new Date().toLocaleTimeString();
-          hasUnsavedChanges = false;
-          updateSyncCard();
-          return true;
-        } catch (error) {
-          lastError = error;
-          console.error(`Supabase save error, attempt ${attempt}:`, error);
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-        }
+      if (saveInProgress) {
+        saveQueued = true;
+        syncStatus = 'Ожидает сохранения';
+        updateSyncCard();
+        return false;
       }
 
-      syncStatus = 'Ошибка сохранения';
-      lastCloudSaveAt = '';
-      updateSyncCard();
-      toast(`Не удалось сохранить в Supabase: ${lastError?.message || 'неизвестная ошибка'}`);
-      return false;
+      saveInProgress = true;
+      let lastError = null;
+
+      if (force) app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      else app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+
+      try {
+        for (let attempt = 1; attempt <= SUPABASE_SAVE_RETRIES; attempt += 1) {
+          try {
+            syncStatus = attempt === 1 ? 'Сохранение...' : `Сохранение, попытка ${attempt}`;
+            updateSyncCard();
+
+            const response = await withTimeout(
+              fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
+                method: 'POST',
+                headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
+                body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() })
+              }),
+              SUPABASE_TIMEOUT_MS,
+              'Supabase не ответил за 30 секунд при сохранении.'
+            );
+
+            if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
+
+            syncStatus = 'Supabase';
+            lastCloudSaveAt = new Date().toLocaleTimeString();
+            hasUnsavedChanges = false;
+            updateSyncCard();
+            return true;
+          } catch (error) {
+            lastError = error;
+            console.error(`Supabase save error, attempt ${attempt}:`, error);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+        }
+
+        syncStatus = 'Ошибка сохранения';
+        lastCloudSaveAt = '';
+        updateSyncCard();
+        toast(`Не удалось сохранить в Supabase: ${lastError?.message || 'неизвестная ошибка'}`);
+        return false;
+      } finally {
+        saveInProgress = false;
+        if (saveQueued || hasUnsavedChanges) {
+          saveQueued = false;
+          setTimeout(() => saveStateToSupabase(false), 0);
+        }
+      }
     }
 
     function withTimeout(promise, ms, message) {
@@ -985,7 +1005,7 @@
             headers: supabaseHeaders()
           }),
           SUPABASE_TIMEOUT_MS,
-          'Supabase не ответил за 8 секунд.'
+          'Supabase не ответил за 30 секунд.'
         );
         if (!response.ok) throw new Error(`Supabase load ${response.status}: ${await response.text()}`);
         const rows = await response.json();
@@ -1063,7 +1083,10 @@
       hasUnsavedChanges = true;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       const ok = await saveStateToSupabase(true);
-      if (ok) toast('Принудительно сохранено в Supabase.');
+      if (ok) {
+        cloudSaveEnabled = true;
+        toast('Принудительно сохранено в Supabase.');
+      }
     }
 
     async function forceCloudReload() {
@@ -2220,14 +2243,6 @@
       try {
         app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-        if (cloudSaveEnabled && hasUnsavedChanges) {
-          fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
-            method: 'POST',
-            headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
-            body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() }),
-            keepalive: true
-          });
-        }
       } catch (error) {}
     });
 
