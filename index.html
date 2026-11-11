@@ -748,6 +748,321 @@
       .header-inner, .tabs, main { padding-left: 14px; padding-right: 14px; }
       .tab-btn { width: 100%; }
     }
+
+    /* ─── ГЛУБИНА · game-like control deck ────────────────────────── */
+    :root {
+      --paper:#091923;--paper-2:#0b202a;--paper-3:#173440;--paper-light:#e6f2e8;
+      --ink:#e7f2ed;--ink-soft:#a1b8b8;--ink-faint:#6f9199;
+      --line:rgba(117,191,181,.23);--line-strong:rgba(113,190,181,.44);
+      --deep:#173e43;--deep-2:#28646a;--brass:#b9a778;--brass-soft:#e5d29a;
+      --danger:#c76968;--danger-2:#a44c55;--good:#67c5a8;--blue:#74b7d3;
+      --shadow:rgba(0,0,0,.45);--shadow-soft:rgba(0,0,0,.2);
+      --font:'EB Garamond',Georgia,serif;--display:'Cormorant Garamond',Georgia,serif;
+      --ui:'Trebuchet MS',Arial,sans-serif;
+    }
+    html,body {background:#07141d; color:var(--ink);}
+    body {min-height:100vh; background:
+      radial-gradient(circle at 74% 3%, rgba(50,116,127,.21),transparent 37%),
+      radial-gradient(circle at 12% 65%, rgba(21,83,82,.2),transparent 38%),
+      linear-gradient(147deg,#08151d,#071f27 52%,#08141d);}
+    body::before { opacity:.13; mix-blend-mode:normal; background-image:
+      linear-gradient(rgba(113,190,181,.09) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(113,190,181,.09) 1px,transparent 1px);background-size:32px 32px; }
+    body::after {background:radial-gradient(circle at center,transparent 45%,rgba(0,0,0,.42));opacity:1;}
+    button {font-family:var(--ui);font-size:12px;font-weight:700;letter-spacing:.045em;
+      border:1px solid rgba(102,207,176,.38);border-radius:10px;color:#e8fbf3;
+      padding:10px 13px;background:linear-gradient(140deg,#255b5d,#1a4046);
+      box-shadow:0 6px 14px rgba(0,0,0,.15);}
+    button:hover {background:linear-gradient(140deg,#2b7771,#25555e);box-shadow:0 9px 16px rgba(0,0,0,.21);}
+    button.ghost {color:var(--ink-soft);border-color:var(--line);background:rgba(27,61,70,.66);}
+    button.ghost:hover {color:var(--ink);background:rgba(40,86,93,.9);}
+    button.good {color:#e9fff5;background:linear-gradient(140deg,#296d60,#1b4e4c);border-color:#56a995;}
+    button.warn {color:#fff1cc;background:linear-gradient(140deg,#846538,#514427);border-color:#a18c55;}
+    button.danger {color:#ffecea;background:linear-gradient(140deg,#803c47,#522f3c);border-color:#a26067;}
+    input,select,textarea {font-family:var(--ui);font-size:13px;color:var(--ink);
+      background:rgba(7,25,35,.79);border:1px solid rgba(121,182,185,.29);border-radius:9px;
+      box-shadow:none;}
+    input:focus,select:focus,textarea:focus {border-color:var(--good);box-shadow:0 0 0 2px rgba(96,208,172,.13);}
+    input[readonly],textarea[readonly],select:disabled {background:rgba(17,42,51,.75);color:var(--ink-soft);}
+    select {background-color:#102b35;background-image:linear-gradient(45deg,transparent 50%,#a7ccc8 50%),linear-gradient(135deg,#a7ccc8 50%,transparent 50%);
+      background-position:calc(100% - 19px) calc(50% - 3px),calc(100% - 13px) calc(50% - 3px);background-size:6px 6px,6px 6px;}
+    label {color:#cfe5e0;font-family:var(--ui);font-size:12px;font-weight:650;margin-bottom:7px;letter-spacing:.04em;}
+    .app-header {position:relative;top:auto;margin-left:228px;border-bottom:1px solid var(--line);
+      background:rgba(9,27,37,.88);backdrop-filter:blur(16px);box-shadow:none;z-index:60;}
+    .header-inner {max-width:none;padding:15px 30px;}
+    .title-row {border:0;border-radius:0;padding:0;background:transparent;box-shadow:none;overflow:visible;}
+    .title-row::before {display:none;}
+    .sigil {border-color:rgba(132,205,189,.45);width:51px;height:51px;flex-basis:51px;
+      background:#153842;border-radius:12px;}
+    .sigil-placeholder {background:#153842;color:#97d7c2;font-family:var(--ui);}
+    .eyebrow {color:#71c9ab;font:700 10px var(--ui);letter-spacing:.16em;}
+    .title h1 {color:#effcf5;font-size:clamp(26px,2.6vw,33px);letter-spacing:.035em;}
+    .mode-pill {border-color:var(--line);background:rgba(6,20,29,.7);border-radius:10px;}
+    .mode-pill button {font:700 11px var(--ui);color:var(--ink-soft);}
+    .mode-pill button.active {border:1px solid rgba(90,199,176,.52);border-radius:7px;
+      color:#dffef2;background:linear-gradient(140deg,#21645f,#17484d);}
+    .storage-actions {gap:5px;}
+    .storage-actions button.small {padding:5px 8px;font-size:10px;}
+    .resource-strip {margin:0 0 0 228px;padding:23px 30px 0;max-width:none;}
+    .resource-row {grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;}
+    .resource-card {border:1px solid var(--line);border-radius:13px;min-height:89px;padding:13px;
+      background:linear-gradient(155deg,rgba(22,56,67,.91),rgba(11,32,43,.92));box-shadow:0 7px 18px rgba(0,0,0,.12);}
+    .resource-card .k {font:700 10px var(--ui);color:#7faba9;letter-spacing:.11em;margin-bottom:8px;}
+    .resource-card .v {font:700 30px var(--display);color:#effff4;line-height:1.05;}
+    .resource-card input {font:700 22px var(--display);padding:4px 7px;}
+    .resource-card:nth-child(2) .v,.resource-card:nth-child(2) input {color:#f5d995;}
+    .resource-card:nth-child(3) .v,.resource-card:nth-child(3) input {color:#8de4ca;}
+    .resource-card:nth-child(4) .v {color:#8bd1ee;}
+    .tabs {position:fixed;top:0;left:0;bottom:0;width:228px;z-index:80;margin:0;padding:106px 12px 20px;
+      flex-direction:column;gap:5px;align-items:stretch;max-width:none;
+      background:linear-gradient(180deg,rgba(10,36,46,.98),rgba(6,21,32,.99));border-right:1px solid rgba(99,170,170,.19);
+      box-shadow:12px 0 36px rgba(0,0,0,.17);overflow-y:auto;}
+    .tabs::before {content:'НАВИГАЦИЯ';display:block;padding:4px 12px 12px;color:#608f95;
+      font:700 10px var(--ui);letter-spacing:.18em;}
+    .tab-btn {display:flex;align-items:center;justify-content:flex-start;gap:13px;text-align:left;
+      width:100%;padding:13px 15px;background:transparent;color:#8faab0;border:1px solid transparent;
+      box-shadow:none;border-radius:10px;font:700 12px var(--ui);}
+    .tab-btn .nav-icon {font-size:19px;font-weight:400;width:22px;text-align:center;opacity:.88;}
+    .tab-btn.active {background:linear-gradient(90deg,rgba(48,119,110,.49),rgba(28,76,77,.29));
+      border:1px solid rgba(88,190,167,.22);box-shadow:inset 3px 0 0 #6bdfbb;color:#e3fff5;}
+    .tab-btn:hover {transform:none;background:rgba(45,100,104,.32);box-shadow:none;}
+    main {margin:0 0 0 228px;max-width:none;padding:23px 30px 55px;}
+    .panel,.item {border:1px solid var(--line);background:linear-gradient(150deg,rgba(18,50,61,.91),rgba(10,30,41,.97));
+      color:var(--ink);box-shadow:0 12px 27px rgba(0,0,0,.13);}
+    .panel {border-radius:18px;padding:19px;}
+    .item {border-radius:12px;padding:15px;}
+    .panel::before,.item::before {background:linear-gradient(180deg,rgba(143,232,203,.025),transparent 35%);opacity:1;}
+    .panel-head h2 {color:#eff8f3;font-size:27px;}
+    .panel-head h3,h3 {color:#e2f4e9;}
+    .panel-head p,.item-sub {color:var(--ink-soft);}
+    .panel-head p {font-size:14px;line-height:1.5;}
+    .item-title {color:#e9f9f2;font-size:24px;}
+    .item-sub {font-size:14px;}
+    .stat {color:#92b7b5;background:rgba(8,29,39,.54);border:1px solid rgba(113,187,183,.19);}
+    .stat strong {color:#e0f4e9;}
+    .chip {color:#9fc4c1;background:rgba(28,71,78,.66);border:1px solid rgba(99,158,160,.29);
+      font:700 10px var(--ui);text-transform:none;padding:5px 9px;letter-spacing:0;}
+    .chip.good {background:rgba(40,111,89,.51);border-color:rgba(89,199,152,.31);color:#a9f6d5;}
+    .chip.warn {background:rgba(121,91,45,.52);border-color:rgba(199,157,74,.34);color:#ffe1a4;}
+    .chip.danger {background:rgba(113,42,57,.5);border-color:rgba(209,109,111,.38);color:#ffc1bf;}
+    .chip.blue {background:rgba(34,98,126,.43);border-color:rgba(113,182,215,.3);color:#b7e5fd;}
+    .clock {background:rgba(4,20,27,.8);border-color:rgba(114,180,164,.2);height:8px;}
+    .clock span {background:linear-gradient(90deg,#58bd9a,#d6c285);}
+    .notice {background:rgba(96,123,91,.13);border-color:rgba(115,176,148,.22);color:#afd0c7;font-size:14px;}
+    .empty {background:rgba(4,26,36,.47);color:#8caeb0;border-color:var(--line);font-size:14px;}
+    .danger-zone {background:linear-gradient(150deg,rgba(84,42,56,.75),rgba(19,36,47,.95));}
+    .mission-compact,.fleet-ships {border-color:var(--line);background:rgba(5,23,32,.5);}
+    .mission-compact-title,.fleet-ships summary {color:#eaf8ee;}
+    .mission-compact-meta {color:#9fbab9;font-size:12px;}
+    .mission-compact-body {border-color:var(--line);}
+    dialog {color:var(--ink);background:linear-gradient(150deg,#193743,#0d2633);border-color:var(--line-strong);
+      box-shadow:0 40px 100px rgba(0,0,0,.7);}
+    dialog::backdrop {background:rgba(2,12,19,.78);}
+    .modal-head {background:rgba(8,31,41,.7);border-color:var(--line);}
+    .modal-head h2 {color:#ebf9f0;}
+    .toast {background:#123f42;color:#e1fff2;border:1px solid #4fb493;font-family:var(--ui);font-size:12px;}
+    .game-title {display:flex;justify-content:space-between;align-items:flex-end;gap:15px;margin-bottom:20px;flex-wrap:wrap;}
+    .game-title .overline {font:700 10px var(--ui);color:#70bcb0;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px;}
+    .game-title h2 {font:700 clamp(30px,4vw,43px) var(--display);letter-spacing:.015em;margin:0;line-height:1;}
+    .game-title p {font:13px var(--ui);color:#93b6b2;max-width:660px;margin:8px 0 0;line-height:1.5;}
+    .mission-counter {color:#e3f5ee;font:700 12px var(--ui);background:rgba(26,70,71,.8);border:1px solid var(--line);border-radius:9px;padding:10px 12px;}
+    .command-banner {display:grid;grid-template-columns:1fr auto;align-items:center;gap:18px;
+      padding:15px 18px;background:linear-gradient(105deg,rgba(20,87,82,.66),rgba(15,42,50,.83));
+      border:1px solid rgba(108,207,164,.23);border-radius:14px;margin-bottom:15px;}
+    .command-banner small {display:block;font:700 10px var(--ui);letter-spacing:.15em;color:#7cdab9;text-transform:uppercase;margin-bottom:4px;}
+    .command-banner b {font:700 22px var(--display);}
+    .command-banner p {color:#90b6b4;font:12px var(--ui);margin:2px 0 0;}
+    .map-layout {display:grid;grid-template-columns:minmax(0,1.8fr) minmax(285px,.68fr);gap:17px;margin-bottom:18px;}
+    .map-panel {padding:0;overflow:hidden;background:#0b2d3b;}
+    .map-head {padding:17px 20px 13px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+      background:rgba(8,33,44,.9);border-bottom:1px solid var(--line);}
+    .map-head h2 {font-size:25px;font-weight:700;margin:0;}
+    .map-head p {font:12px var(--ui);color:#8eb0b4;margin:5px 0 0;}
+    .map-controls {display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .sea-map {position:relative;min-height:390px;overflow:hidden;touch-action:pan-y;isolation:isolate;
+      background:radial-gradient(circle at 45% 35%,#1d5866 0%,#0e394b 45%,#0b2a39 100%);}
+    .sea-map.has-user-image {min-height:0;}
+    .sea-map.has-user-image::after {background:linear-gradient(180deg,rgba(6,20,31,.06),transparent 78%,rgba(5,20,29,.22));}
+    .sea-map.has-user-image .map-art {display:none;}
+    .map-user-image {position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;display:none;}
+    .sea-map.has-user-image .map-user-image {display:block;}
+    .map-control-help {font:11px var(--ui);color:#8db6b5;margin:7px 0 0;line-height:1.4;}
+    .sea-map.is-placing {cursor:crosshair;box-shadow:inset 0 0 0 3px rgba(106,223,176,.42);}
+    .sea-map::after {content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+      background:repeating-radial-gradient(ellipse at 29% 55%,transparent 0 38px,rgba(144,226,211,.07) 39px 40px,transparent 41px 72px);}
+    .map-art {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:.88;}
+    .map-caption {position:absolute;bottom:14px;left:18px;z-index:3;font:700 10px var(--ui);
+      color:rgba(185,232,229,.66);letter-spacing:.14em;pointer-events:none;text-shadow:0 1px 4px #06202f;}
+    .map-compass {position:absolute;right:18px;top:15px;z-index:2;font:700 27px var(--display);color:rgba(223,240,218,.57);pointer-events:none;}
+    .map-pin {position:absolute;z-index:4;transform:translate(-50%,-50%);border:none;box-shadow:none;
+      display:flex;align-items:center;flex-direction:column;gap:6px;min-width:74px;width:auto;max-width:145px;padding:8px 6px;
+      background:transparent;color:#e9fff6;cursor:pointer;touch-action:none;user-select:none;}
+    .map-pin::before {content:'';width:24px;height:24px;border-radius:8px 8px 8px 0;
+      transform:rotate(-45deg);background:linear-gradient(145deg,#ffd88d,#b8a068);border:2px solid #f7e6ad;
+      box-shadow:0 0 0 5px rgba(227,193,105,.13),0 5px 12px rgba(0,0,0,.5);transition:.15s ease;}
+    .map-pin .pin-dot {position:absolute;top:16px;left:50%;transform:translateX(-50%);color:#153740;font:700 13px var(--ui);pointer-events:none;}
+    .map-pin .pin-label {font:700 11px var(--ui);line-height:1.2;max-width:135px;text-align:center;white-space:normal;
+      padding:4px 7px;border-radius:6px;border:1px solid rgba(139,194,177,.21);background:rgba(4,21,31,.81);
+      text-shadow:0 1px 4px #000;}
+    .map-pin:hover {background:transparent;transform:translate(-50%,-53%);box-shadow:none;}
+    .map-pin:hover::before {box-shadow:0 0 0 7px rgba(103,215,174,.2),0 6px 14px rgba(0,0,0,.5);}
+    .map-pin.selected::before {background:linear-gradient(145deg,#9df3d0,#48b49e);border-color:#cbffec;
+      box-shadow:0 0 0 8px rgba(87,208,166,.22),0 0 23px rgba(58,213,154,.35);}
+    .map-pin.threat::before {background:linear-gradient(145deg,#faaba7,#bc5a67);border-color:#ffc3b5;}
+    .map-pin.dragging {z-index:20;cursor:grabbing;}
+    .map-inspector {display:flex;flex-direction:column;gap:15px;min-width:0;}
+    .intel-kicker {font:700 10px var(--ui);letter-spacing:.14em;color:#80c9b0;text-transform:uppercase;}
+    .intel-name {font:700 31px var(--display);line-height:1.03;margin:4px 0 2px;}
+    .intel-type {font:12px var(--ui);color:#9db9b6;}
+    .intel-metric {display:flex;align-items:center;justify-content:space-between;gap:10px;margin:11px 0 6px;
+      font:700 11px var(--ui);color:#aac8c3;}
+    .intel-metric strong {color:#eff9ee;font-size:13px;}
+    .meter {height:7px;border-radius:10px;background:rgba(3,19,25,.9);overflow:hidden;border:1px solid var(--line);}
+    .meter > span {display:block;height:100%;background:linear-gradient(90deg,#439c8f,#8fe0b4);border-radius:10px;}
+    .meter.danger > span {background:linear-gradient(90deg,#7e5359,#ed8b7b);}
+    .intel-facts {display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:7px;}
+    .intel-facts > div {padding:10px;border-radius:9px;background:rgba(7,29,38,.6);border:1px solid var(--line);}
+    .intel-facts small {display:block;font:10px var(--ui);color:#82a8ac;}
+    .intel-facts b {font:700 22px var(--display);color:#e8f6e8;}
+    .map-legend {display:flex;gap:17px;flex-wrap:wrap;padding:12px 19px;background:rgba(4,24,33,.64);
+      border-top:1px solid var(--line);font:11px var(--ui);color:#91b5b3;}
+    .legend-dot {display:inline-block;width:8px;height:8px;border-radius:50%;background:#80dac0;margin-right:6px;}
+    .legend-dot.warn {background:#efa99f;}
+    .map-help {font:12px/1.45 var(--ui);color:#94b5b5;}
+    .wave-accent {font-size:27px;filter:saturate(.85);}
+    .leader-medallion {width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+      border:1px solid rgba(99,202,171,.32);background:radial-gradient(circle at 30% 25%,#275c60,#0c2c37);
+      color:#b6e7d7;border-radius:14px;font-size:23px;margin-right:12px;flex-shrink:0;}
+    .leader-title-row {display:flex;align-items:center;}
+    .vision-art {border-left:3px solid #7bd3c2;background:linear-gradient(90deg,rgba(34,103,102,.12),transparent);}
+    .chronicle-timeline {border-left:1px solid rgba(97,197,172,.36);margin-left:12px;padding-left:20px;position:relative;}
+    .chronicle-timeline>.item::before {content:'';position:absolute;left:-26px;top:22px;width:9px;height:9px;border-radius:50%;background:#6cd5ad;opacity:1;}
+    .mission-board .item {border-left:3px solid rgba(96,203,172,.5);}
+    .fleet-card-decor {display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;
+      border-radius:12px;background:rgba(36,94,102,.4);border:1px solid var(--line);font-size:25px;margin-right:10px;}
+    /* A native select arrow avoids repeating-triangle artifacts in Firefox. */
+    select, select:focus {
+      appearance:auto; -webkit-appearance:menulist;
+      background:#102b35 !important; background-image:none !important;
+      background-repeat:no-repeat; color:#e7f2ed; color-scheme:dark;
+      padding-right:12px; min-width:0;
+    }
+    select option {background-color:#102b35;color:#eff8f3;}
+    .grid > *, .form-grid > *, .split > *, .map-layout > * {min-width:0;}
+    .leader-card {height:100%;min-width:0;overflow-wrap:anywhere;}
+    .leader-card-top {display:grid;grid-template-columns:42px minmax(0,1fr);column-gap:12px;row-gap:9px;align-items:start;}
+    .leader-card-identity {min-width:0;}
+    .leader-card .leader-medallion {margin-right:0;grid-row:1 / span 2;}
+    .leader-card .item-title {font-size:clamp(21px,2.1vw,27px);line-height:1.08;overflow-wrap:anywhere;}
+    .leader-card .item-sub {overflow-wrap:anywhere;}
+    .leader-card-status {grid-column:2;justify-self:start;}
+    .leader-card .chips {margin-top:12px;}
+    .sea-map {cursor:grab;touch-action:none;}
+    .sea-map.is-placing {cursor:crosshair;}
+    .sea-map.is-panning {cursor:grabbing;}
+    .map-stage {position:absolute;inset:0;width:100%;height:100%;transform-origin:50% 50%;will-change:transform;}
+    .map-zoom-controls {display:flex;align-items:center;gap:5px;border:1px solid var(--line);padding:3px;border-radius:9px;background:#0b2834;}
+    .map-zoom-controls button {min-width:30px;padding:5px 8px;font-size:16px;line-height:1.1;}
+    .map-zoom-controls .zoom-value {color:#bde1d6;font:700 11px var(--ui);min-width:39px;text-align:center;}
+    .map-pin {min-width:44px;max-width:110px;gap:3px;padding:5px 3px;}
+    .map-pin::before {width:18px;height:18px;border-radius:6px 6px 6px 0;border-width:1.5px;box-shadow:0 0 0 3px rgba(227,193,105,.13),0 3px 8px rgba(0,0,0,.45);}
+    .map-pin .pin-dot {top:10px;font-size:10px;}
+    .map-pin .pin-label {font-size:9px;max-width:110px;padding:3px 5px;}
+    .fleet-pin {min-width:22px;max-width:85px;padding:3px 2px;z-index:6;}
+    .fleet-pin::before {width:13px;height:13px;border-radius:50%;transform:none;background:linear-gradient(150deg,#91d8ea,#337f95);border:1px solid #b9ecf7;box-shadow:0 0 0 3px rgba(73,154,174,.18),0 3px 8px rgba(0,0,0,.4);}
+    .fleet-pin .pin-dot {top:5px;font-size:10px;color:#f3ffff;line-height:1;text-shadow:0 1px 2px #07323e;}
+    .fleet-pin .pin-label {display:none;white-space:nowrap;max-width:130px;}
+    .fleet-pin:hover .pin-label,.fleet-pin:focus-visible .pin-label,.fleet-pin.selected .pin-label {display:block;}
+    .fleet-pin.selected::before {background:linear-gradient(150deg,#b1f6ff,#42a6be);border-color:#e6ffff;box-shadow:0 0 0 5px rgba(85,206,232,.25);}
+    .fleet-pin:hover::before {box-shadow:0 0 0 5px rgba(85,206,232,.25),0 6px 12px rgba(0,0,0,.5);}
+    .legend-dot.fleet {background:#6ccbe6;}
+    @media (max-width:1250px) {.map-layout {grid-template-columns:1.35fr 1fr;}.resource-row {grid-template-columns:repeat(3,1fr);} }
+    @media (max-width:900px) {
+      .tabs {position:relative;top:auto;bottom:auto;left:auto;width:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
+        padding:7px 12px;gap:7px;border-right:0;border-bottom:1px solid var(--line);box-shadow:none;}
+      .tabs::before {display:none;}
+      .tab-btn {flex:0 0 auto;width:auto;white-space:nowrap;padding:9px 12px;}
+      .app-header,.resource-strip,main {margin-left:0;}
+      .app-header {position:relative;}
+      .resource-strip {padding:16px 14px 0;}
+      .header-inner {padding:12px 14px;}
+      main {padding:18px 14px 40px;}
+      .map-layout {grid-template-columns:1fr;}
+      .map-inspector {min-height:0;}
+      .resource-row {grid-template-columns:repeat(3,minmax(0,1fr));}
+    }
+    @media (max-width:620px) {
+      .resource-row {grid-template-columns:repeat(2,minmax(0,1fr));}
+      .sea-map {min-height:330px;}
+      .map-head {flex-wrap:wrap;}
+      .map-pin .pin-label {font-size:9px;max-width:85px;}
+      .fleet-pin .pin-label {font-size:9px;}
+      .command-banner {grid-template-columns:1fr;}
+      .title-row {gap:12px;}
+    }
+
+
+    /* Фоновые иллюстрации: встроенные силуэты и собственные изображения */
+    .entity-art {position:relative;isolation:isolate;overflow:hidden;margin:0 0 13px;
+      border:1px solid rgba(125,194,178,.22);border-radius:11px;
+      min-height:112px;background:linear-gradient(135deg,#163e47,#0a2331);}
+    .entity-art img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+      opacity:.86;transition:transform .45s ease,opacity .3s ease;}
+    .entity-art::after {content:'';position:absolute;inset:0;pointer-events:none;
+      background:linear-gradient(90deg,rgba(4,18,27,.38),transparent 72%),linear-gradient(0deg,rgba(3,16,25,.6),transparent 55%);}
+    .entity-art:hover img {transform:scale(1.035);opacity:.96;}
+    .entity-art .art-caption {position:absolute;z-index:1;bottom:10px;left:13px;color:#d2ebe3;
+      font:700 10px var(--ui);text-shadow:0 2px 5px #07151d;letter-spacing:.12em;text-transform:uppercase;}
+    .entity-art .art-origin {position:absolute;z-index:1;right:10px;top:9px;border-radius:6px;
+      padding:4px 7px;background:rgba(7,29,38,.65);border:1px solid rgba(155,210,194,.23);
+      font:700 9px var(--ui);letter-spacing:.04em;color:#b4dacd;}
+    .entity-art.location-art {height:119px;}
+    .entity-art.leader-art {height:106px;}
+    .entity-art.mission-art {height:88px;}
+    .entity-art.vision-art-banner {height:135px;}
+    .entity-art.inspector-art {height:112px;margin-bottom:14px;}
+    .entity-art.editor-art {height:152px;margin:0 0 12px;}
+    .art-editor {grid-column:1 / -1;margin-top:9px;padding:12px;border:1px solid rgba(122,193,180,.22);
+      border-radius:12px;background:rgba(7,28,39,.46);}
+    .art-editor-head {display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;}
+    .art-editor-head b {font:700 12px var(--ui);color:#daefe7;}
+    .art-editor-controls {display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+    .art-editor-controls label {display:inline-flex;align-items:center;margin:0;}
+    .art-editor-controls input[type=file] {display:none;}
+    .art-editor .art-hint {font:11px/1.5 var(--ui);color:#8fb7b5;margin:8px 0 0;}
+    .art-url-row {margin-top:10px;}
+    .art-url-row input {margin-top:5px;}
+    .art-editor .art-status {font:700 10px var(--ui);color:#8fd6bc;}
+    .leader-card .leader-art-shell {margin-bottom:11px;}
+    .leader-card-top {margin-top:0;}
+    @media(max-width:720px){
+      .entity-art.location-art,.entity-art.leader-art {height:95px;min-height:95px;}
+      .entity-art.editor-art {height:124px;min-height:124px;}
+    }
+
+    /* Общая библиотека иллюстраций (ДМ). */
+    .art-library-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:14px;margin:10px 0 21px;}
+    .art-library-card {min-width:0;border:1px solid rgba(132,201,184,.25);border-radius:13px;padding:12px;background:rgba(6,25,34,.44);}
+    .art-library-title {display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px;font:12px var(--ui);}
+    .art-library-title strong {color:#e1f3eb;}
+    .art-library-title span {color:#9bc3ba;font-size:10px;}
+    .entity-art.art-library-preview {height:116px;min-height:116px;margin-bottom:10px;}
+    .art-library-actions {display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .art-library-actions input[type=file] {display:none;}
+    .art-library-upload {display:inline-flex;padding:8px 10px;margin:0;border:1px solid rgba(138,207,192,.37);border-radius:8px;background:#21494b;color:#e5f8ee;cursor:pointer;font:700 11px var(--ui);}
+    .art-library-upload:hover {background:#2c6161;}
+    .art-library-url {display:block;margin-top:10px;font:600 11px var(--ui);color:#9ec9c2;}
+    .art-library-url input {font-size:12px;margin-top:5px;padding:9px 10px;}
+    .art-library-foot,.art-shared-hint {font:12px/1.55 var(--ui);color:#9ec4bc;margin:8px 0 12px;}
+    .art-library-foot {margin:8px 0 0;}
+    .art-shared-hint b {color:#d3f0e7;}
+
+    /* Сворачиваемая библиотека видов миссий, чтобы 18 категорий не загромождали ДМ-панель. */
+    .art-library-section {margin:10px 0;border:1px solid rgba(126,190,180,.25);border-radius:12px;padding:10px 12px;background:rgba(8,30,41,.30);}
+    .art-library-section>summary {cursor:pointer;list-style:revert;font:700 14px var(--ui);color:#d3ede4;padding:5px 2px;}
+    .art-library-section[open]>summary {margin-bottom:12px;border-bottom:1px solid rgba(126,190,180,.17);padding-bottom:12px;}
+    .art-library-section>.art-library-grid {margin-bottom:8px;}
+    .art-library-hint {font:12px/1.55 var(--ui);color:#a8cdc4;margin:5px 0 16px;}
   </style>
 </head>
 <body>
@@ -778,6 +1093,7 @@
             <button class="small ghost" type="button" onclick="document.getElementById('importFile').click()">Импорт</button>
             <button id="resetBtn" class="small danger hidden" type="button" onclick="confirmReset()">Сброс</button>
             <input id="importFile" type="file" accept="application/json" class="hidden" onchange="importState(event)" />
+            <input id="mapImageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/avif" class="hidden" onchange="uploadMapBackground(event)" />
           </div>
         </div>
       </div>
@@ -812,19 +1128,20 @@
     let cloudSaveEnabled = false;
     let cloudSaveTimer = null;
     let hasUnsavedChanges = false;
+    let editRevision = 0;
     let saveInProgress = false;
     let saveQueued = false;
     let syncStatus = 'Загрузка...';
     let lastCloudSaveAt = '';
 
     const tabs = [
-      ['overview', 'Обзор'],
-      ['missions', 'Миссии'],
+      ['overview', 'Командный центр'],
+      ['missions', 'Приказы'],
       ['fleets', 'Флоты'],
-      ['locations', 'Локации'],
-      ['leaders', 'Главари'],
+      ['locations', 'Карта и поселения'],
+      ['leaders', 'Совет культа'],
       ['visions', 'Видения'],
-      ['chronicle', 'Хроника'],
+      ['chronicle', 'Летопись'],
       ['dm', 'ДМ']
     ];
 
@@ -868,7 +1185,7 @@
       const fleet = uid('fleet');
       const vision = uid('vision');
       return {
-        ui: { mode: 'player' },
+        ui: { mode: 'player', artLibrary: {tiers:{}, leaders:{}, missions:{}} },
         cult: {
           name: 'Дети глубины',
           leaderName: 'Айзек',
@@ -907,9 +1224,335 @@
       };
     }
 
+
+    /* Атмосферные арты встроены в HTML; их можно заменить пользовательскими. */
+    const ART_TIER_NAMES = ['Тайное присутствие','Малая община','Подпольная сеть','Теневой узел','Скрытое господство'];
+    const ART_CACHE = new Map();
+    // Одна общая иллюстрация на каждый стандартный тип миссии.
+    const MISSION_ART_ACTIONS = [...new Set(Object.values(missionActions).flat())];
+    const MISSION_ART_PROMPTS = {
+      'Торговый рейс':'Купеческий парусник разгружается в оживлённой средневековой гавани. Бочки, мешки, торговцы, докеры, утренний туман.',
+      'Контрабанда':'Ночная разгрузка корабля в укромной бухте. Люди скрытно переносят ящики между лодкой и берегом при свете одного фонаря.',
+      'Пиратство':'Пиратский корабль сближается с купеческим судном в штормовом море. Абордажные крюки, натянутые снасти, силуэты моряков.',
+      'Перевозка':'Судно тайно доставляет пассажиров и закрытый груз к отдалённому острову. Фигуры в плащах на палубе и туманный берег.',
+      'Патруль':'Вооружённый парусник обходит скалистое побережье. Дозорные на носу изучают горизонт над неспокойным морем.',
+      'Экспедиция':'Моряки высаживаются на неизвестный берег. Влажные скалы, вход в древний грот, фонари и походные припасы.',
+      'Малый ритуал':'Тайный обряд нескольких фигур в тёмных одеяниях перед малым каменным алтарём. Свечи, соль, раковины, тёмная вода.',
+      'Жертвоприношение':'Мрачный ритуал в прибрежном гроте. Жрецы окружают мокрый каменный алтарь с ритуальной чашей. Чёрное море позади.',
+      'Большое жертвоприношение':'Большая подземная пещера, множество свечей, коленопреклонённые силуэты вокруг древнего алтаря, тень существа над водой.',
+      'Вербовка послушников':'Тайное собрание в подвале портового здания. Жрец обращается к небольшой группе людей при свечах, неприметный символ культа.',
+      'Основать ячейку':'Последователи обустраивают тайное убежище в заброшенном прибрежном доме. Карты, свечи, спрятанные ритуальные предметы.',
+      'Общая вербовка':'Неприметная встреча в портовой таверне. Вербовщик беседует с рыбаками, докерами и моряками, не привлекая внимания.',
+      'Тушение слухов':'Двое доверенных людей тихо беседуют с встревоженным горожанином в тёмном портовом переулке. Вдали вечерняя жизнь гавани.',
+      'Подкуп':'Тайная передача кошеля чиновнику за закрытым столом. Документы, сургучные печати и приглушённый свет масляной лампы.',
+      'Саботаж':'Ночные диверсанты скрытно повреждают снасти и оборудование у портовых складов. Мокрые доски, фонари, длинные тени.',
+      'Инфильтрация':'Агент культа изучает документы в кабинете богатого торговца. Приоткрытая дверь, письма, печати, полутьма.',
+      'Захват жертвы':'Фигуры в плащах ведут связанного пленника через туманную пристань к лодке. Вдали огни спящего порта.',
+      'Другое':'Тайная комната совета с морской картой, письмами, кинжалом, компасом и запечатанным приказом на столе. За окном ночное море.'
+    };
+    const MISSION_ART_BASE_PROMPT = 'Широкоформатная иллюстрация 16:9. Мрачное морское фэнтези, реалистичный цифровой концепт-арт. Средневековый прибрежный мир, тайный культ, влажный камень, потемневшее дерево, морской туман. Приглушённые сине-зелёные, серые и бурые оттенки, кинематографический свет, приземлённая архитектура. Без надписей, рамок, интерфейса, неонового свечения и чрезмерной эпичности.';
+    function copyMissionArtPrompt(action) {
+      const scene=MISSION_ART_PROMPTS[action];
+      if(!scene)return;
+      const value=`${scene} ${MISSION_ART_BASE_PROMPT}`;
+      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(value).then(()=>toast('Промпт скопирован.'),()=>fallbackCopyPrompt(value));
+      else fallbackCopyPrompt(value);
+    }
+    function fallbackCopyPrompt(value) {
+      const area=document.createElement('textarea');
+      area.value=value;area.style.position='fixed';area.style.left='-9999px';document.body.appendChild(area);
+      area.select();try{document.execCommand('copy');toast('Промпт скопирован.');}catch(e){toast('Не удалось скопировать промпт.');}
+      area.remove();
+    }
+
+    function svgArt(kind) {
+      const seed = kind.startsWith('tier-') ? Number(kind.split('-')[1]) : 0;
+      const priest = kind==='leader-priest', captain=kind==='leader-captain', cell=kind==='leader-cell';
+      const ritual = kind==='mission-ritual', pirate=kind==='mission-pirate', trade=kind==='mission-trade', covert=kind==='mission-covert';
+      const vision=kind==='vision-abyss';
+      const a=seed>=4?'#3d8e7f':'#2c787d',glow=vision?'#67b1a4':(priest||ritual?'#b6a982':'#74b8ae');
+      const clouds=Array.from({length:9},(_,i)=>`<ellipse cx="${i*180-30}" cy="${92+i%3*43}" rx="${140+i%3*40}" ry="${44+i%2*19}" fill="#63969b" opacity="${.025+i%4*.01}"/>`).join('');
+      const light=Array.from({length:15},(_,i)=>`<path d="M${i*118-40} ${304+i%3*18}l${34+i%4*17} -3" stroke="#8fc9b4" opacity="${.07+i%4*.025}" stroke-width="2"/>`).join('');
+      let shapes='';
+      if(seed){
+        const count=[0,1,3,5,7,9][seed];
+        shapes=`<path d="M0 313L165 264 310 297 468 260 624 300 786 270 950 292 1160 259 1280 286V470H0Z" fill="#102f36" opacity=".94"/>`;
+        for(let i=0;i<count;i++){
+          const x=115+(i*121)%1010,y=285+(i%3)*19,h=30+(i%4)*9,w=65+(i%3)*13;
+          shapes+=`<g opacity="${.68+(i%3)*.09}"><rect x="${x}" y="${y-h}" width="${w}" height="${h+30}" fill="#091e27"/><path d="M${x-9} ${y-h}l${w/2+9} -24 ${w/2+9} 24" fill="#0b2229" stroke="#3e6662" stroke-width="2"/><rect x="${x+w*.43}" y="${y-h+10}" width="7" height="10" fill="#b4b37e" opacity="${.3+i%3*.17}"/></g>`;
+        }
+        shapes+=`<path d="M0 350L210 332 439 348 770 328 1008 350 1280 334V470H0Z" fill="#0d3d43" opacity=".83"/>`;
+        shapes+=`<path d="M${250+seed*75} 308v80m-45-36h140m-100-64v65" fill="none" stroke="#182f32" stroke-width="9" opacity=".85"/>`;
+        for(let j=0;j<seed;j++){
+          const x=220+j*180;
+          shapes+=`<circle cx="${x}" cy="${301-j%2*27}" r="4" fill="#b0c59c" opacity=".46"/><path d="M${x-8} ${301-j%2*27}q8-15 16 0" fill="none" stroke="#8dc3aa" opacity=".36"/>`;
+        }
+        if(seed>=3) shapes+=`<ellipse cx="1021" cy="296" rx="107" ry="30" fill="#66b6a0" opacity=".07"/><path d="M970 283q48-82 96 0" fill="none" stroke="#63877b" stroke-width="5" opacity=".55"/>`;
+      }else if(captain||pirate||trade){
+        shapes=`<path d="M0 323Q290 284 600 330T1280 315V470H0Z" fill="#0b3440"/>`;
+        shapes+=`<path d="M810 342h230l-45 45H845Z" fill="#091b27"/><path d="M930 122v245m-2-210l-112 162h112Zm15 26l115 133H945Z" fill="#1d4146" stroke="#537d73" stroke-width="2"/>`;
+        shapes+=`<path d="M880 355h110" stroke="#102831" stroke-width="9"/>`;
+        if(captain){
+          shapes+=`<ellipse cx="365" cy="177" rx="39" ry="47" fill="#071e28"/><path d="M310 165q52-95 112-6l-9 15h-110Z" fill="#061721"/><path d="M320 213q-70 7-92 187h257q-23-178-81-187l-42 34Z" fill="#09232d"/><path d="M316 224l47 52 39-52" fill="none" stroke="#547b73" stroke-width="3" opacity=".7"/>`;
+        }
+        if(pirate) shapes+=`<path d="M1000 76L972 180m0-104 28 104" stroke="#bd9079" opacity=".75" stroke-width="6"/><path d="M1065 174q-20-36-44 3t-38 26" fill="none" stroke="#c4c0a7" opacity=".38" stroke-width="5"/>`;
+        if(trade) shapes+=`<path d="M123 292h186v44H123Z" fill="#152f32"/><path d="M145 280h53v44h-53zm66-25h54v70h-54" fill="#263c39"/>`;
+      }else if(priest||ritual){
+        shapes=`<path d="M0 335L190 296l250 18 185-36 335 39 320-24V470H0Z" fill="#0d2c31"/><path d="M310 377h405v94H310Z" fill="#101d27"/>`;
+        shapes+=`<circle cx="700" cy="210" r="112" fill="none" stroke="#accbb4" stroke-width="2" opacity=".21"/><circle cx="700" cy="210" r="82" fill="none" stroke="#accbb4" stroke-width="2" opacity=".19"/>`;
+        shapes+=`<path d="M508 349q54-273 113 0l31 96H481Z" fill="#071a26"/><ellipse cx="564" cy="178" rx="45" ry="51" fill="#071a26"/><path d="M517 193q15-112 101-2L573 256Z" fill="#081c25"/>`;
+        for(let i=0;i<6;i++) shapes+=`<path d="M${820+i*44} 349q-9-39 0-53" stroke="#d4b980" opacity=".45" stroke-width="2"/><ellipse cx="${820+i*44}" cy="296" rx="5" ry="11" fill="#ead1a1" opacity=".39"/>`;
+      }else if(cell||covert){
+        shapes=`<path d="M0 365V172l150-28v-88h94v83l154-21v202h120v-88h141v120l139-31v-190h150v217l232-47V470H0Z" fill="#0a232d"/>`;
+        for(let i=0;i<15;i++){
+          const x=50+i*78,y=208+i%4*27;
+          shapes+=`<rect x="${x}" y="${y}" width="13" height="19" fill="#b6b18a" opacity="${.1+(i%5)*.035}"/>`;
+        }
+        shapes+=`<path d="M625 405q32-148 68-15l35 80H577Z" fill="#061922"/><ellipse cx="655" cy="291" rx="37" ry="45" fill="#061922"/><path d="M607 282l49-68 49 68" fill="#061922"/>`;
+      }else if(vision){
+        shapes=`<path d="M0 280q245-160 483 15t797-24V470H0Z" fill="#0b3640" opacity=".7"/>`;
+        for(let i=0;i<7;i++) shapes+=`<path d="M${-70+i*218} 470q${200-i*20} -210 ${220-i*30} -360" stroke="#0a272f" stroke-width="${22+i*3}" fill="none" opacity=".8"/>`;
+        shapes+=`<ellipse cx="870" cy="190" rx="220" ry="117" fill="#37696a" opacity=".11"/><ellipse cx="784" cy="180" rx="27" ry="10" fill="#a3d3be" opacity=".58"/><ellipse cx="973" cy="180" rx="27" ry="10" fill="#a3d3be" opacity=".58"/>`;
+      }
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 470" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="g" x2=".9" y2="1"><stop stop-color="#153e47"/><stop offset=".57" stop-color="${a}" stop-opacity=".53"/><stop offset="1" stop-color="#061722"/></linearGradient><radialGradient id="r"><stop stop-color="${glow}" stop-opacity=".24"/><stop offset="1" stop-color="${glow}" stop-opacity="0"/></radialGradient></defs><rect width="1280" height="470" fill="url(#g)"/><ellipse cx="940" cy="188" rx="660" ry="330" fill="url(#r)"/>${clouds}<path d="M0 286Q250 229 460 264T1280 250V470H0Z" fill="#0b2631" opacity=".63"/>${shapes}${light}<path d="M0 462H1280" stroke="#d3c393" stroke-opacity=".17" stroke-width="2"/></svg>`;
+    }
+
+    function defaultArtKind(entity, collection) {
+      if (collection === 'locations') return 'tier-' + Math.max(1,Math.min(5,locationTier(entity)));
+      if (collection === 'leaders') return entity.type === 'Старший жрец' ? 'leader-priest' : entity.type === 'Глава ячейки' ? 'leader-cell' : 'leader-captain';
+      if (collection === 'visions') return 'vision-abyss';
+      const action=String(entity.actionType||'').toLowerCase();
+      if (/пират|патрул/.test(action)) return 'mission-pirate';
+      if (/ритуал|жертвопринош|послушник|жертв/.test(action)) return 'mission-ritual';
+      if (/торгов|контрабанд|перевоз|экспедиц/.test(action)) return 'mission-trade';
+      return 'mission-covert';
+    }
+    function artByKind(kind) {
+      if(!ART_CACHE.has(kind)) ART_CACHE.set(kind,'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgArt(kind)));
+      return ART_CACHE.get(kind);
+    }
+    function defaultArtUri(entity, collection) {
+      return artByKind(defaultArtKind(entity,collection));
+    }
+    function usableArtSource(value) {
+      if(typeof value!=='string' || !value || value.length>220000) return '';
+      if(/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(value)) return value;
+      if(/^https?:\/\//i.test(value)) return value;
+      if(/^(?!\/\/)(?!.*\.\.)(?:\.?\/?)[\w\-/.%]+\.(?:png|jpe?g|webp|avif)(?:\?[\w=&%-]+)?$/i.test(value)) return value;
+      return '';
+    }
+    // Общая библиотека для пяти тиров и трёх архетипов. Сущности больше не хранят собственные арты.
+    const SHARED_LEADER_ART = {
+      'Капитан флота':'captain',
+      'Старший жрец':'priest',
+      'Глава ячейки':'cell'
+    };
+    function sharedArtKey(entity, collection) {
+      if(collection==='locations') return ['tiers',String(locationTier(entity))];
+      if(collection==='leaders') return ['leaders',SHARED_LEADER_ART[entity?.type] || 'captain'];
+      if(collection==='missions') return ['missions',MISSION_ART_ACTIONS.includes(entity?.actionType) ? entity.actionType : 'Другое'];
+      return null;
+    }
+    function sharedArtSource(entity, collection) {
+      const key=sharedArtKey(entity,collection);
+      return key ? usableArtSource(app.ui?.artLibrary?.[key[0]]?.[key[1]]) : '';
+    }
+    function artSrc(entity, collection) {
+      if(collection==='locations' || collection==='leaders' || collection==='missions')
+        return sharedArtSource(entity,collection) || defaultArtUri(entity||{},collection);
+      return usableArtSource(entity?.artImage) || defaultArtUri(entity||{},collection);
+    }
+    function artBanner(entity,collection,compact='') {
+      const labels={locations:'Скрытое влияние',leaders:'Фигура культа',missions:'Морское донесение',visions:'Откровение Бездны'};
+      const locTier=collection==='locations' ? locationTier(entity) : 0;
+      const caption=collection==='locations' ? `Тир ${locTier} · ${ART_TIER_NAMES[locTier-1]}` :
+                    collection==='leaders' ? entity.type||'Главарь' : collection==='missions' ? entity.actionType||'Приказ культа' : 'Голос глубин';
+      const def=defaultArtUri(entity,collection);
+      const src=artSrc(entity,collection);
+      const isShared=collection==='locations' || collection==='leaders' || collection==='missions';
+      const hasCustom=isShared ? !!sharedArtSource(entity,collection) : !!usableArtSource(entity.artImage);
+      const cls={locations:'location-art',leaders:'leader-art',missions:'mission-art',visions:'vision-art-banner'}[collection]||'';
+      return `<div class="entity-art ${cls} ${compact}" aria-label="${escapeHtml(labels[collection]||'Иллюстрация')}"><img alt="" loading="lazy" src="${escapeHtml(src)}" data-fallback="${escapeHtml(def)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(caption)}</span>${hasCustom ? `<span class="art-origin">${isShared?'Общий арт':'Свой арт'}</span>` : ''}</div>`;
+    }
+    // Настройки общих иллюстраций доступны ДМу на отдельной панели.
+    function sharedArtNotice(entity,collection) {
+      const label=collection==='locations'?'текущего тира':collection==='missions'?'этого типа миссий':'этого типа главарей';
+      return `<div class="full" style="min-width:0"><div data-shared-art-preview>${artBanner(entity,collection,'editor-art')}</div>
+        <p class="art-shared-hint">Это общий фон для всех ${label}. Изменить его можно в разделе <b>ДМ → Библиотека иллюстраций</b>.</p></div>`;
+    }
+    function previewSharedArt(form,collection) {
+      if(!form)return;
+      const entity={};
+      if(collection==='leaders') entity.type=form.elements.namedItem('type')?.value;
+      if(collection==='missions') entity.actionType=form.elements.namedItem('actionType')?.value;
+      if(collection==='locations') {
+        ['sailors','acolytes','portfolk','thugs','rich'].forEach(k=>entity[k]=Number(form.elements.namedItem(k)?.value)||0);
+        const tier=form.elements.namedItem('tier');if(tier)tier.value=locationTier(entity);
+      }
+      const preview=form.querySelector('[data-shared-art-preview]');
+      if(preview)preview.innerHTML=artBanner(entity,collection,'editor-art');
+    }
+    function getSharedArtSlot(group,key) {
+      if(!['tiers','leaders','missions'].includes(group))return null;
+      const k=String(key);
+      if(group==='tiers' && !/^[1-5]$/.test(k))return null;
+      if(group==='leaders' && !['captain','priest','cell'].includes(k))return null;
+      if(group==='missions' && !MISSION_ART_ACTIONS.includes(k))return null;
+      return [group,k];
+    }
+    function sharedArtSlot(group,key,title) {
+      const kind=group==='tiers'?`tier-${key}`:group==='leaders'?`leader-${key}`:defaultArtKind({actionType:key},'missions');
+      const fallback=artByKind(kind);
+      const custom=usableArtSource(app.ui?.artLibrary?.[group]?.[key]);
+      const src=custom || fallback;
+      const path=custom && !custom.startsWith('data:') ? custom : '';
+      const inputId=`shared-art-${group}-${group==='missions'?MISSION_ART_ACTIONS.indexOf(key):key}`;
+      const promptButton=group==='missions'?`<button type="button" class="small ghost" onclick="copyMissionArtPrompt('${escapeHtml(key)}')">Скопировать промпт</button>`:'';
+      return `<div class="art-library-card">
+        <div class="art-library-title"><strong>${escapeHtml(title)}</strong><span>${custom?'Свой фон':'Стандартный фон'}</span></div>
+        <div class="entity-art art-library-preview"><img alt="" src="${escapeHtml(src)}" data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(title)}</span></div>
+        <div class="art-library-actions"><label for="${inputId}" class="art-library-upload">Загрузить PNG / JPG / WebP</label>
+          <input id="${inputId}" type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadSharedArt(event,'${group}','${key}')" />
+          <button type="button" class="small ghost" onclick="resetSharedArt('${group}','${key}')" ${custom?'':'disabled'}>Вернуть стандартный</button>${promptButton}</div>
+        <label class="art-library-url">Ссылка или путь к файлу<input type="text" value="${escapeHtml(path)}" placeholder="images/${kind}.webp" onchange="setSharedArtUrl('${group}','${key}',this.value)" /></label>
+      </div>`;
+    }
+    function renderSharedArtLibrary() {
+      if(!isDM())return '';
+      const tiers=ART_TIER_NAMES.map((title,i)=>sharedArtSlot('tiers',String(i+1),`Тир ${i+1} · ${title}`)).join('');
+      const leaders=[['captain','Капитан флота'],['priest','Старший жрец'],['cell','Глава ячейки']]
+        .map(([key,title])=>sharedArtSlot('leaders',key,title)).join('');
+      const missionGroups=Object.entries(missionActions).map(([role,actions]) => {
+        const unique=actions.filter(action=>action!=='Другое');
+        return `<details class="art-library-section"><summary>${escapeHtml(role)} · ${unique.length} типов</summary><div class="art-library-grid">${unique.map((action)=>sharedArtSlot('missions',action,action)).join('')}</div></details>`;
+      }).join('');
+      const other=sharedArtSlot('missions','Другое','Другое · универсальный фон');
+      return `<section id="sharedArtLibrary" class="panel span-12">
+        <div class="panel-head"><div><h2>Библиотека иллюстраций</h2><p>Общие иллюстрации по тирам поселений, ролям главарей и видам миссий. Обновление категории сразу меняет все её карточки.</p></div></div>
+        <details class="art-library-section"><summary>Развитие поселений · 5 тиров</summary><div class="art-library-grid">${tiers}</div></details>
+        <details class="art-library-section"><summary>Архетипы главарей · 3 роли</summary><div class="art-library-grid">${leaders}</div></details>
+        <h3>Миссии · ${MISSION_ART_ACTIONS.length} видов</h3>
+        <p class="art-library-hint">Выбирай категорию ниже. Иллюстрация применяется к любой миссии с этим типом действия. Кнопка «Скопировать промпт» выдаёт готовое описание сцены для генерации картинки.</p>
+        ${missionGroups}
+        <details class="art-library-section"><summary>Универсальная миссия · Другое</summary><div class="art-library-grid">${other}</div></details>
+        <p class="art-library-foot">Изменения сохраняются в состоянии культа. Загруженные изображения сжимаются, но при большом количестве картинок предпочтительнее загружать файлы в репозиторий GitHub и указывать относительные пути — это снижает нагрузку на Supabase. При проблемах с подключением экспортируй актуальный JSON. Старые индивидуальные картинки локаций, главарей и миссий останутся в сохранениях, но общие категории имеют приоритет и отображаются вместо них.</p>
+      </section>`;
+    }
+    function commitSharedArt(group,key,url) {
+      const slot=getSharedArtSlot(group,key);
+      if(!isDM() || !slot)return;
+      app.ui=app.ui || {};
+      app.ui.artLibrary=app.ui.artLibrary || {tiers:{},leaders:{},missions:{}};
+      app.ui.artLibrary[group]=app.ui.artLibrary[group] || {};
+      if(url)app.ui.artLibrary[group][key]=url;
+      else delete app.ui.artLibrary[group][key];
+      const y=window.scrollY;
+      const openSections=[...document.querySelectorAll('#sharedArtLibrary > details.art-library-section')]
+        .map((section,index)=>section.open?index:-1).filter(index=>index>=0);
+      saveState(false);
+      render();
+      document.querySelectorAll('#sharedArtLibrary > details.art-library-section').forEach((section,index)=>{
+        section.open=openSections.includes(index);
+      });
+      window.scrollTo(0,y);
+      toast(url?'Общий фон обновлён для всех соответствующих карточек.':'Восстановлен стандартный фон.');
+    }
+    function resetSharedArt(group,key){commitSharedArt(group,key,'');}
+    function setSharedArtUrl(group,key,value) {
+      if(!isDM())return;
+      const url=String(value||'').trim();
+      if(url && !usableArtSource(url)){toast('Нужна https-ссылка или путь к PNG, JPG или WebP.');return;}
+      commitSharedArt(group,key,url);
+    }
+    async function uploadSharedArt(event,group,key) {
+      const file=event.target.files?.[0];
+      if(!isDM() || !getSharedArtSlot(group,key) || !file)return;
+      const input=event.target;
+      input.disabled=true;
+      try{
+        const url=await compressEntityImage(file,group==='missions'?80000:180000);
+        commitSharedArt(group,key,url);
+      }catch(error){console.error('Ошибка загрузки общего изображения:',error);toast(error.message);}
+      finally{input.disabled=false;input.value='';}
+    }
+
+    function artEditor(entity,collection) {
+      if(!isDM()) return artBanner(entity,collection,'editor-art');
+      return `<section class="art-editor full"><div class="art-editor-head"><b>Фоновая иллюстрация</b><span class="art-status" data-art-status>${usableArtSource(entity.artImage)?'Свой арт':'Стандартный фон'}</span></div>
+        <div data-art-preview>${artBanner(entity,collection,'editor-art')}</div>
+        <div class="art-editor-controls"><label class="small ghost art-upload-label" style="cursor:pointer;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#21494b;color:#e5f8ee;font:700 11px var(--ui)">Загрузить картинку<input type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadEntityArt(event)" /></label>
+        <button type="button" class="small ghost" onclick="resetEntityArt(this.form)">Вернуть стандартную</button></div>
+        <div class="art-url-row"><label>Или ссылка / путь к изображению на GitHub</label><input name="artUrl" placeholder="images/my-art.webp или https://..." value="${escapeHtml(usableArtSource(entity.artImage)?.startsWith('data:')?'':usableArtSource(entity.artImage))}" onchange="setEntityArtUrl(this.form,this.value)" /></div>
+        <p class="art-hint">Свой файл сжимается для синхронизации между устройствами (примерно до 135 КБ). Можно указать путь к файлу в репозитории — тогда картинка не увеличит базу. Изменения вступят в силу после кнопки «Сохранить».</p></section>`;
+    }
+    function initEntityArtForm(entity,collection) {
+      const form=document.querySelector('#modal form');
+      if(!form)return;
+      form._artImage=usableArtSource(entity.artImage);
+      form._artCollection=collection;
+      form._artBase=entity;
+    }
+    function previewEntityArt(form) {
+      if(!form || !form._artCollection)return;
+      const collection=form._artCollection;
+      const base=form._artBase||{};
+      const entity={...base,artImage:form._artImage||''};
+      if(collection==='leaders' && form.elements.namedItem('type'))entity.type=form.elements.namedItem('type').value;
+      if(collection==='locations') {
+        ['sailors','acolytes','portfolk','thugs','rich'].forEach(k=>{const el=form.elements.namedItem(k);if(el)entity[k]=Number(el.value)||0;});
+        const tierEl=form.elements.namedItem('tier');if(tierEl)tierEl.value=locationTier(entity);
+      }
+      const preview=form.querySelector('[data-art-preview]');
+      if(preview)preview.innerHTML=artBanner(entity,collection,'editor-art');
+      const status=form.querySelector('[data-art-status]');
+      if(status)status.textContent=entity.artImage?'Свой арт':'Стандартный фон';
+    }
+    function resetEntityArt(form){if(!isDM())return;form._artImage='';const url=form.elements.namedItem('artUrl');if(url)url.value='';previewEntityArt(form);}
+    function setEntityArtUrl(form,url){if(!isDM())return;url=String(url||'').trim();if(url && !usableArtSource(url)){toast('Нужна https-ссылка или путь к изображению в репозитории.');return;}form._artImage=url;previewEntityArt(form);}
+    async function compressEntityImage(file,maxDataLength=180000) {
+      if(!file || !/^image\/(?:jpeg|png|webp)$/.test(file.type))throw new Error('Нужен PNG, JPG или WebP.');
+      if(file.size>12*1024*1024)throw new Error('Исходный файл слишком большой (более 12 МБ).');
+      const url=URL.createObjectURL(file);
+      try{
+        const img=new Image();
+        await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error('Не удалось открыть изображение.'));img.src=url;});
+        const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+        if(!ctx)throw new Error('Браузер не поддерживает обработку изображения.');
+        const maxPixels=maxDataLength;
+        for(const maxWidth of [1100,880,700,560,420]){
+          const scale=Math.min(1,maxWidth/Math.max(img.naturalWidth,img.naturalHeight));
+          canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+          ctx.fillStyle='#0d2931';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          for(const q of [.76,.65,.54,.43]){
+            let data=canvas.toDataURL('image/webp',q);
+            if(!data.startsWith('data:image/webp'))data=canvas.toDataURL('image/jpeg',q);
+            if(data.length<=maxPixels)return data;
+          }
+        }
+        throw new Error('Не удалось достаточно уменьшить картинку. Используй ссылку на файл в GitHub.');
+      }finally{URL.revokeObjectURL(url);}
+    }
+    async function uploadEntityArt(event) {
+      const form=event.target.closest('form'),file=event.target.files?.[0];
+      if(!isDM() || !form || !file)return;
+      try{
+        const data=await compressEntityImage(file);
+        form._artImage=data;
+        const url=form.elements.namedItem('artUrl');if(url)url.value='';
+        previewEntityArt(form);
+        toast('Картинка подготовлена. Нажми «Сохранить».');
+      }catch(e){toast(e.message);console.error('Ошибка загрузки фона:',e);}
+      finally{event.target.value='';}
+    }
+    function saveEntityArt(form,entity) {
+      if(isDM() && typeof form._artImage==='string')entity.artImage=usableArtSource(form._artImage);
+    }
+
     function saveState(show = false) {
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
       hasUnsavedChanges = true;
+      editRevision += 1;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       if (cloudSaveEnabled) saveStateToSupabase(false);
       if (show) toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
@@ -939,6 +1582,7 @@
       }
 
       saveInProgress = true;
+      const writeRevision = editRevision;
       let lastError = null;
 
       if (force) app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
@@ -966,7 +1610,7 @@
 
             syncStatus = 'Supabase';
             lastCloudSaveAt = new Date().toLocaleTimeString();
-            hasUnsavedChanges = false;
+            hasUnsavedChanges = editRevision !== writeRevision;
             updateSyncCard();
             return true;
           } catch (error) {
@@ -983,9 +1627,9 @@
         return false;
       } finally {
         saveInProgress = false;
-        if (saveQueued || hasUnsavedChanges) {
+        if (saveQueued) {
           saveQueued = false;
-          setTimeout(() => saveStateToSupabase(false), 0);
+          if (syncStatus !== 'Ошибка сохранения') setTimeout(() => saveStateToSupabase(false), 0);
         }
       }
     }
@@ -1019,7 +1663,7 @@
 
           if (local?.cult && localTime > cloudTime) {
             app = cloudState;
-            mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
+            mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? 'dm' : 'player';
             normalizeState();
             syncStatus = 'Supabase, локальная копия новее';
             render();
@@ -1144,6 +1788,10 @@
 
     function normalizeState() {
       app.ui = app.ui || { mode: 'player' };
+      if (!app.ui.artLibrary || typeof app.ui.artLibrary !== 'object') app.ui.artLibrary={tiers:{},leaders:{},missions:{}};
+      for (const group of ['tiers','leaders','missions']) {
+        if (!app.ui.artLibrary[group] || typeof app.ui.artLibrary[group] !== 'object') app.ui.artLibrary[group]={};
+      }
       app.cult = app.cult || { name: 'Дети глубины', leaderName: 'Айзек', currentTick: 1, daysPerTick: 5, wealth: 1, favor: 0 };
       app.locations = app.locations || [];
       app.ships = app.ships || [];
@@ -1228,7 +1876,6 @@
       }
       mode = next;
       if (currentTab === 'dm' && !isDM()) currentTab = 'overview';
-      saveState(false);
       render();
     }
 
@@ -1321,28 +1968,361 @@
     }
 
     function renderTabs() {
-      document.getElementById('tabs').innerHTML = tabs.map(([id, label]) => `<button class="tab-btn ${currentTab === id ? 'active' : ''} ${id === 'dm' && !isDM() ? 'ghost' : ''}" onclick="setTab('${id}')">${label}</button>`).join('');
+      const icons = {overview:'◈',missions:'⚑',fleets:'⛵',locations:'⌖',leaders:'♜',visions:'◉',chronicle:'≋',dm:'⚙'};
+      document.getElementById('tabs').innerHTML = tabs.map(([id, label]) =>
+        `<button class="tab-btn ${currentTab === id ? 'active' : ''} ${id === 'dm' && !isDM() ? 'ghost' : ''}" onclick="setTab('${id}')"><span class="nav-icon" aria-hidden="true">${icons[id]}</span><span>${label}</span></button>`
+      ).join('');
+    }
+
+    // Карта — только визуальная оболочка имеющихся локаций, без новых игровых правил.
+    let selectedMapLocationId = '';
+    let selectedMapFleetId = '';
+    let mapPlacementMode = false;
+    let pendingMapPosition = null;
+    let mapDrag = null;
+    // View-only zoom/pan. These are not part of the Supabase state.
+    let mapZoom = 1, mapOffsetX = 0, mapOffsetY = 0, mapPan = null;
+    let suppressMapClick = false;
+
+    function mapApplyTransform() {
+      const stage = document.getElementById('mapStage');
+      if (stage) stage.style.transform = `translate(${mapOffsetX}px, ${mapOffsetY}px) scale(${mapZoom})`;
+      const zoomValue = document.getElementById('mapZoomValue');
+      if (zoomValue) zoomValue.textContent = `${Math.round(mapZoom * 100)}%`;
+    }
+    function clampMapOffset() {
+      const viewport = document.getElementById('seaMap');
+      if (!viewport) return;
+      const boundX = Math.max(0, (mapZoom - 1) * viewport.clientWidth / 2);
+      const boundY = Math.max(0, (mapZoom - 1) * viewport.clientHeight / 2);
+      mapOffsetX = clamp(mapOffsetX, -boundX, boundX);
+      mapOffsetY = clamp(mapOffsetY, -boundY, boundY);
+    }
+    function changeMapZoom(nextZoom, clientX=null, clientY=null) {
+      const viewport = document.getElementById('seaMap');
+      if (!viewport) return;
+      const rect = viewport.getBoundingClientRect();
+      const px = clientX === null ? 0 : clientX - rect.left - rect.width / 2;
+      const py = clientY === null ? 0 : clientY - rect.top - rect.height / 2;
+      const next = Math.round(clamp(nextZoom, 1, 4) * 100) / 100;
+      // Keep the map point under the mouse cursor fixed as we zoom.
+      const ratio = next / mapZoom;
+      mapOffsetX = px - (px - mapOffsetX) * ratio;
+      mapOffsetY = py - (py - mapOffsetY) * ratio;
+      mapZoom = next;
+      clampMapOffset();
+      mapApplyTransform();
+    }
+    function resetMapZoom() {
+      mapZoom = 1;mapOffsetX = 0;mapOffsetY = 0;mapApplyTransform();
+    }
+    function mapWheel(event) {
+      event.preventDefault();
+      changeMapZoom(mapZoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15), event.clientX, event.clientY);
+    }
+    function mapPanDown(event) {
+      if (mapPlacementMode || event.button !== 0 || event.target.closest('.map-pin')) return;
+      mapPan = {pointerId:event.pointerId,x:event.clientX,y:event.clientY,offsetX:mapOffsetX,offsetY:mapOffsetY,moved:false};
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    function mapPanMove(event) {
+      if (!mapPan || mapPan.pointerId !== event.pointerId) return;
+      const dx=event.clientX-mapPan.x,dy=event.clientY-mapPan.y;
+      if (Math.hypot(dx,dy)>4) mapPan.moved=true;
+      if (!mapPan.moved) return;
+      mapOffsetX=mapPan.offsetX+dx;mapOffsetY=mapPan.offsetY+dy;
+      clampMapOffset();mapApplyTransform();
+      event.currentTarget.classList.add('is-panning');
+    }
+    function mapPanUp(event) {
+      if (!mapPan || mapPan.pointerId !== event.pointerId) return;
+      if (mapPan.moved) {
+        suppressMapClick=true;
+        setTimeout(()=>{suppressMapClick=false;},0);
+      }
+      mapPan=null;
+      event.currentTarget.classList.remove('is-panning');
+    }
+    // Local file preview never goes into Supabase JSON; shared maps use an asset URL.
+    let mapPreviewUrl = '';
+
+    function uploadMapBackground(event) {
+      if (!isDM()) return;
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { toast('Нужен файл изображения.'); return; }
+      if (mapPreviewUrl) URL.revokeObjectURL(mapPreviewUrl);
+      mapPreviewUrl = URL.createObjectURL(file);
+      render();
+      toast('Изображение открыто в предпросмотре. Для всех устройств размести файл в GitHub и укажи его путь.');
+    }
+
+    function setMapBackgroundPath() {
+      if (!isDM()) return;
+      const answer = prompt('Путь к картинке, размещённой рядом с index.html (например, map.jpg), или https-ссылка:', app.ui?.mapImageUrl || 'map.jpg');
+      if (answer === null) return;
+      const value = answer.trim();
+      if (!value || !(/^(https:\/\/|[a-zA-Z0-9_./%+()\-]+$)/.test(value)) || value.startsWith('//') || value.includes('..')) {
+        alert('Укажи относительный путь к файлу (например, images/map.png) или https-ссылку.');
+        return;
+      }
+      if (mapPreviewUrl) { URL.revokeObjectURL(mapPreviewUrl); mapPreviewUrl=''; }
+      app.ui = app.ui || {};
+      app.ui.mapImageUrl = value;
+      saveState(false);
+      render();
+      toast('Путь к фоновой карте сохранён.');
+    }
+
+    function clearMapBackground() {
+      if (!isDM() || !confirm('Вернуться к условной карте?')) return;
+      if (mapPreviewUrl) { URL.revokeObjectURL(mapPreviewUrl); mapPreviewUrl=''; }
+      app.ui = app.ui || {};
+      // Blank path explicitly disables the default map.jpg asset.
+      app.ui.mapImageUrl = '';
+      saveState(false);
+      render();
+    }
+
+    function mapImageLoaded(image) {
+      const map=image.closest('.sea-map');
+      if(!map || !image.naturalWidth || !image.naturalHeight) return;
+      map.style.aspectRatio=`${image.naturalWidth} / ${image.naturalHeight}`;
+      map.classList.add('has-user-image');
+    }
+
+    function mapImageFailed(image) {
+      const map=image.closest('.sea-map');
+      if(map) {map.classList.remove('has-user-image'); map.style.removeProperty('aspect-ratio');}
+    }
+
+    function getMapBackgroundSrc() {
+      if(mapPreviewUrl) return mapPreviewUrl;
+      // Fresh installations automatically detect map.jpg in the GitHub Pages folder.
+      return app.ui?.mapImageUrl === undefined ? 'map.jpg' : app.ui.mapImageUrl;
+    }
+
+
+    function mapPoint(loc, index) {
+      if (Number.isFinite(Number(loc.mapX)) && loc.mapX !== undefined && loc.mapX !== null &&
+          Number.isFinite(Number(loc.mapY)) && loc.mapY !== undefined && loc.mapY !== null)
+        return {x:clamp(Number(loc.mapX),8,92),y:clamp(Number(loc.mapY),13,85)};
+      // Стабильное исходное расположение старых локаций — без записи в базу.
+      const points = [[24,35],[64,48],[46,67],[78,27],[29,73],[51,23],[78,75],[15,61],[61,82]];
+      const pick = points[index % points.length];
+      return {x:pick[0],y:pick[1]};
+    }
+
+    function fleetMapPoint(fleet,index) {
+      if (fleet.mapX !== undefined && fleet.mapX !== null && fleet.mapY !== undefined && fleet.mapY !== null &&
+          Number.isFinite(Number(fleet.mapX)) && Number.isFinite(Number(fleet.mapY))) {
+        return {x:clamp(Number(fleet.mapX),2,98),y:clamp(Number(fleet.mapY),2,98)};
+      }
+      const locIndex = app.locations.findIndex(l=>l.id===fleet.locationId);
+      if (locIndex !== -1) {
+        const pt=mapPoint(app.locations[locIndex],locIndex);
+        const shift=(index%3)-1;
+        return {x:clamp(pt.x+5+shift*3,3,97),y:clamp(pt.y+7+(index%2)*2,3,97)};
+      }
+      const positions=[[45,48],[72,66],[21,58],[62,26],[80,43],[33,78]];
+      const pt=positions[index%positions.length];
+      return {x:pt[0],y:pt[1]};
+    }
+
+    function mapLandSvg() {
+      return `<svg class="map-art" viewBox="0 0 900 480" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <defs>
+          <pattern id="waveGrid" width="65" height="65" patternUnits="userSpaceOnUse"><path d="M65 0H0V65" fill="none" stroke="#8fd7cf" stroke-width=".4" opacity=".3"/></pattern>
+          <radialGradient id="islandFill"><stop stop-color="#4e7770" offset="0"/><stop stop-color="#315c60" offset=".58"/><stop stop-color="#244e56" offset="1"/></radialGradient>
+          <filter id="softGlow"><feGaussianBlur stdDeviation="5"/></filter>
+        </defs>
+        <rect width="900" height="480" fill="url(#waveGrid)"/>
+        <path d="M-90 119 Q35 32 129 61 Q173 66 222 141 Q214 181 166 202 L118 203 Q54 179 -18 218Z" fill="#1d4850" stroke="#4d8985" stroke-width="2" opacity=".8"/>
+        <path d="M160 108 Q190 66 244 82 L279 114 Q302 173 258 199 L211 206 Q157 178 148 141Z" fill="url(#islandFill)" stroke="#6caaa0" stroke-width="2"/>
+        <path d="M461 177 Q525 109 600 139 Q663 141 699 188 Q702 247 643 280 Q577 306 515 278 Q447 244 461 177Z" fill="url(#islandFill)" stroke="#6caaa0" stroke-width="2"/>
+        <path d="M312 307 Q346 267 402 296 Q440 330 418 375 L373 390 Q314 375 306 339Z" fill="url(#islandFill)" stroke="#6caaa0" stroke-width="2"/>
+        <path d="M697 -62 Q752 8 790 75 Q813 122 896 131 L947 76 937 -100Z" fill="#255560" stroke="#659c9c" stroke-width="2"/>
+        <path d="M758 367 Q795 336 848 361 L928 394 950 488 780 508 Q733 466 758 367Z" fill="#27555c" stroke="#659c9c" stroke-width="2"/>
+        <path d="M194 117 Q222 119 252 153 M540 193 Q586 162 637 199 M344 319 Q363 302 391 329" fill="none" stroke="#b5d3a3" opacity=".4" stroke-width="3"/>
+        <g opacity=".5" fill="none" stroke="#9bc6bc" stroke-width="1" stroke-dasharray="4 11">
+          <path d="M244 145 Q368 78 554 210 Q649 307 809 383"/><path d="M377 327 Q474 295 552 242"/>
+        </g>
+        <g fill="#b8ddd4" opacity=".13" font-family="serif" font-size="27" font-style="italic"><text x="352" y="75">Море теней</text><text x="24" y="352">Глубокие воды</text><text x="688" y="323">Бездна</text></g>
+        <g transform="translate(843 62)" stroke="#a8c9bb" fill="none" opacity=".72"><circle r="23"/><path d="M0-32V32M-32 0H32M0-32L5-9 0 0 -5-9Z"/><text y="-40" x="-4" fill="#d1ebd5" stroke="none" font-size="14">N</text></g>
+      </svg>`;
+    }
+
+    function renderSeaMap(context='overview') {
+      const selected = byId('locations',selectedMapLocationId) || app.locations[0] || null;
+      const pins = app.locations.map((loc,i) => {
+        const pt=mapPoint(loc,i);
+        const icon = ['Крупный остров','Малый остров'].includes(loc.type) ? '◆' : loc.type === 'Тайная бухта' ? '⌁' : '⌂';
+        return `<button type="button" class="map-pin location-pin ${!selectedMapFleetId && loc.id === selected?.id ? 'selected' : ''} ${loc.infamy>=6 ? 'threat':''}"
+          style="left:${pt.x}%;top:${pt.y}%" data-map-id="${escapeHtml(loc.id)}"
+          title="${escapeHtml(loc.name)}${isDM() ? ' — переместить маркер или нажать для просмотра' : ''}"
+          onpointerdown="mapPinDown(event,'${loc.id}','locations')" onclick="selectMapLocation(event,'${loc.id}')">
+            <span class="pin-dot">${icon}</span><span class="pin-label">${escapeHtml(loc.name)}</span>
+          </button>`;
+      }).join('');
+      const fleetPins = app.fleets.map((fleet,i) => {
+        const pt=fleetMapPoint(fleet,i);
+        return `<button type="button" class="map-pin fleet-pin ${fleet.id===selectedMapFleetId ? 'selected' : ''}"
+          style="left:${pt.x}%;top:${pt.y}%" data-fleet-id="${escapeHtml(fleet.id)}"
+          title="Флот ${escapeHtml(fleet.name)} · ${escapeHtml(fleet.status)}${isDM() ? ' — перетащи, чтобы изменить положение' : ''}"
+          onpointerdown="mapPinDown(event,'${fleet.id}','fleets')" onclick="selectMapFleet(event,'${fleet.id}')">
+            <span class="pin-dot">⛵</span><span class="pin-label">${escapeHtml(fleet.name)}</span>
+          </button>`;
+      }).join('');
+      const mapImageSrc = getMapBackgroundSrc();
+      return `<section class="panel map-panel">
+        <div class="map-head"><div><h2>Карта владений</h2><p>${app.locations.length} поселений и ячеек · ${app.fleets.length} флотов</p>
+          ${isDM() ? `<div class="map-control-help">ДМ может перетаскивать поселения и флоты. Картинку можно заменить собственной.</div>` : ''}</div>
+          <div class="map-controls">
+          <div class="map-zoom-controls" aria-label="Масштаб карты"><button type="button" class="ghost" title="Уменьшить" onclick="changeMapZoom(mapZoom/1.25)">−</button><span class="zoom-value" id="mapZoomValue">${Math.round(mapZoom*100)}%</span><button type="button" class="ghost" title="Увеличить" onclick="changeMapZoom(mapZoom*1.25)">+</button><button type="button" class="ghost" title="Сбросить масштаб" onclick="resetMapZoom()">⤢</button></div>
+          ${isDM() ? `<button class="small ${mapPlacementMode ? 'good' : 'ghost'}" onclick="toggleMapPlacement()">${mapPlacementMode ? '✕ Отмена' : '+ Поставить поселение'}</button>
+          <button class="small ghost" onclick="document.getElementById('mapImageUpload').click()">Загрузить картинку</button>
+          <button class="small ghost" onclick="setMapBackgroundPath()">Путь к карте</button>
+          <button class="small ghost" onclick="clearMapBackground()">Убрать фон</button>` : ''}
+          <button class="small ghost" onclick="setTab('locations')">Все поселения</button></div>
+        </div>
+        <div class="sea-map ${mapPlacementMode ? 'is-placing' : ''}" id="seaMap" onclick="mapBackgroundClick(event)" onwheel="mapWheel(event)" onpointerdown="mapPanDown(event)" onpointermove="mapPanMove(event)" onpointerup="mapPanUp(event)" onpointercancel="mapPanUp(event)">
+          <div class="map-stage" id="mapStage" style="transform:translate(${mapOffsetX}px, ${mapOffsetY}px) scale(${mapZoom})">
+            ${mapLandSvg()}${mapImageSrc ? `<img class="map-user-image" alt="" src="${escapeHtml(mapImageSrc)}" onload="mapImageLoaded(this)" onerror="mapImageFailed(this)" />` : ''}${pins}${fleetPins}
+          </div>
+          <span class="map-caption">${mapPlacementMode ? 'НАЖМИ НА КАРТУ, ЧТОБЫ СОЗДАТЬ ПОСЕЛЕНИЕ' : isDM() ? 'ПЕРЕТАСКИВАЙ МАРКЕРЫ · КОЛЁСИКО ДЛЯ МАСШТАБА' : 'КОЛЁСИКО — МАСШТАБ · ПЕРЕТАСКИВАНИЕ — ПЕРЕМЕЩЕНИЕ'}</span>
+        </div>
+        <div class="map-legend"><span><i class="legend-dot"></i> Поселения</span><span><i class="legend-dot fleet"></i> Флоты</span><span><i class="legend-dot warn"></i> Дурная слава 6+</span><span>Координаты сохраняются, масштаб — только для просмотра</span></div>
+      </section>`;
+    }
+
+    function renderMapInspector() {
+      const selectedFleet=byId('fleets',selectedMapFleetId);
+      if (selectedFleet) {
+        const fleetShips=shipsInFleet(selectedFleet.id);
+        const fleetCaptain=byId('leaders',selectedFleet.captainId);
+        const crew=fleetShips.reduce((acc,ship)=>acc+shipFollowers(ship),0);
+        const location=byId('locations',selectedFleet.locationId);
+        return `<section class="panel map-inspector"><div><div class="intel-kicker">Морское донесение · флот</div>
+          <div class="intel-name">⛵ ${escapeHtml(selectedFleet.name)}</div>
+          <div class="intel-type">${escapeHtml(selectedFleet.status)} · ${escapeHtml(location?.name||'В открытом море')}</div>
+          <div class="intel-facts" style="margin-top:16px"><div><small>Корабли</small><b>${fleetShips.length}</b></div><div><small>Экипаж</small><b>${crew}</b></div></div>
+          <div class="intel-metric"><span>Капитан</span><strong>${escapeHtml(fleetCaptain?.name||'Не назначен')}</strong></div>
+          <div class="intel-metric"><span>Текущая миссия</span><strong>${escapeHtml(nameOf('missions',selectedFleet.currentMissionId,'—'))}</strong></div></div>
+          <div class="map-help">${escapeHtml(selectedFleet.playerNotes||'Флот на службе Детей глубины.')}</div>
+          <div class="actions" style="margin-top:auto"><button class="small" onclick="prefillMission('fleet','${selectedFleet.id}')">Отдать приказ</button><button class="small ghost" onclick="openFleetForm('${selectedFleet.id}')">Открыть флот</button></div>
+        </section>`;
+      }
+      const loc=byId('locations',selectedMapLocationId)||app.locations[0];
+      if (!loc) return `<section class="panel map-inspector"><div class="intel-kicker">Морская разведка</div><div class="intel-name">Неизведанные воды</div><p class="map-help">На карте пока нет владений культа. ${isDM() ? 'Нажми «Поставить поселение», чтобы добавить первое.' : 'Когда появится первое поселение, оно будет отмечено на карте.'}</p></section>`;
+      const total=totalFollowers(loc),tier=locationTier(loc);
+      const start=[0,100,300,600,1000][tier-1],end=[100,300,600,1000,1000][tier-1];
+      const pct=tier===5?100:clamp(Math.round((total-start)/Math.max(1,end-start)*100),0,100);
+      return `<section class="panel map-inspector">${artBanner(loc,'locations','inspector-art')}<div><div class="intel-kicker">Донесение с места · тир ${tier}</div>
+        <div class="intel-name">${escapeHtml(loc.name)}</div><div class="intel-type">${escapeHtml(loc.type)} · ${escapeHtml(loc.status)}</div>
+        <div class="intel-metric"><span>Развитие ячейки</span><strong>${tier===5?'Максимальный тир':`${Math.max(0,end-total)} до тира ${tier+1}`}</strong></div>
+        <div class="meter"><span style="width:${pct}%"></span></div>
+        <div class="intel-metric"><span>Дурная слава</span><strong>${loc.infamy}/10</strong></div><div class="meter danger"><span style="width:${clamp(loc.infamy*10,0,100)}%"></span></div>
+        <div class="intel-facts"><div><small>Последователи</small><b>${total}</b></div><div><small>Главари</small><b>${leadersForLocation(loc.id).length} / ${leaderCapacity(loc)}</b></div></div></div>
+        <div class="map-help">${escapeHtml(loc.playerNotes||loc.infrastructure||'Точка влияния Детей глубины.')}</div>
+        <div class="actions" style="margin-top:auto"><button class="small" onclick="prefillMission('location','${loc.id}')">Отдать приказ</button><button class="small ghost" onclick="openLocationForm('${loc.id}')">Открыть поселение</button></div>
+      </section>`;
+    }
+
+    function toggleMapPlacement() {
+      if (!isDM()) return;
+      mapPlacementMode=!mapPlacementMode;
+      render();
+      if(mapPlacementMode)toast('Нажми на карте, чтобы добавить поселение.');
+    }
+
+    function mapBackgroundClick(event) {
+      if (suppressMapClick || !mapPlacementMode || !isDM() || event.target.closest('.map-pin')) return;
+      const stage=document.getElementById('mapStage');
+      if (!stage) return;
+      const rect=stage.getBoundingClientRect();
+      const x=clamp(Math.round((event.clientX-rect.left)/rect.width*100),2,98);
+      const y=clamp(Math.round((event.clientY-rect.top)/rect.height*100),2,98);
+      pendingMapPosition={x,y};
+      mapPlacementMode=false;
+      openLocationForm();
+    }
+
+    function selectMapLocation(event,id) {
+      if (mapDrag?.moved) {mapDrag=null;event.preventDefault();return;}
+      if (mapPlacementMode) return;
+      selectedMapFleetId='';selectedMapLocationId=id;
+      render();
+    }
+
+    function selectMapFleet(event,id) {
+      if (mapDrag?.moved) {mapDrag=null;event.preventDefault();return;}
+      if (mapPlacementMode) return;
+      selectedMapFleetId=id;
+      render();
+    }
+
+    function mapPinDown(event,id,collection='locations') {
+      event.stopPropagation();
+      if(!isDM() || mapPlacementMode || event.button!==0) return;
+      const pin=event.currentTarget;
+      mapDrag={id,collection,x:event.clientX,y:event.clientY,moved:false,pin};
+      pin.setPointerCapture(event.pointerId);
+      pin.classList.add('dragging');
+      pin.addEventListener('pointermove',mapPinMove);
+      pin.addEventListener('pointerup',mapPinUp,{once:true});
+      pin.addEventListener('pointercancel',mapPinUp,{once:true});
+    }
+
+    function mapPinMove(event) {
+      if(!mapDrag || mapDrag.pin!==event.currentTarget) return;
+      const stage=document.getElementById('mapStage');if(!stage)return;
+      if(Math.hypot(event.clientX-mapDrag.x,event.clientY-mapDrag.y)>5)mapDrag.moved=true;
+      if(!mapDrag.moved)return;
+      const rect=stage.getBoundingClientRect();
+      mapDrag.pin.style.left=`${clamp((event.clientX-rect.left)/rect.width*100,2,98)}%`;
+      mapDrag.pin.style.top=`${clamp((event.clientY-rect.top)/rect.height*100,2,98)}%`;
+    }
+
+    function mapPinUp(event) {
+      if(!mapDrag || mapDrag.pin!==event.currentTarget)return;
+      const drag=mapDrag;
+      drag.pin.removeEventListener('pointermove',mapPinMove);
+      drag.pin.classList.remove('dragging');
+      if(drag.moved){
+        const obj=byId(drag.collection,drag.id);
+        if(obj){obj.mapX=Number.parseFloat(drag.pin.style.left);obj.mapY=Number.parseFloat(drag.pin.style.top);saveState(false);}
+        if(drag.collection==='fleets')selectedMapFleetId=drag.id;
+        else {selectedMapLocationId=drag.id;selectedMapFleetId='';}
+        toast(drag.collection==='fleets'?'Положение флота сохранено.':'Положение поселения сохранено.');
+        setTimeout(()=>{if(mapDrag===drag){mapDrag=null;render();}},0);
+      }else{mapDrag=null;}
     }
 
     function renderOverview() {
-      const dangerous = app.locations.filter(l => l.infamy >= 6);
-      const fleetsAtSea = app.fleets.filter(f => ['В море', 'На миссии', 'Возвращается'].includes(f.status));
-      return `
+      const dangerous=app.locations.filter(l=>l.infamy>=6);
+      const fleetsAtSea=app.fleets.filter(f=>['В море','На миссии','Возвращается'].includes(f.status));
+      const active=activeMissions(), pending=pendingMissions();
+      const chronicle=app.chronicle.filter(c=>isDM()||c.visibleToPlayer).slice(-3).reverse();
+      return `<div class="game-title"><div><div class="overline">Командный центр · Судовой журнал Айзека</div>
+        <h2>Владения Детей глубины</h2><p>Наблюдай за сетью ячеек, отдавай приказы и постепенно расширяй власть культа. Один тик — ${app.cult.daysPerTick} дней.</p></div>
+        <span class="mission-counter">◉ ТИК ${app.cult.currentTick} · ${app.fleets.length} флотов · ${app.locations.length} поселений</span></div>
+        <div class="command-banner"><div><small>Текущие дела культа</small><b>${active.length ? `${active.length} миссий в исполнении` : 'Море спокойно — ждёт приказов'}</b>
+        <p>${pending.length ? `${pending.length} приказов ожидают решения ДМа` : 'Новые приказы можно отправить в любой момент'} · ${totalAllFollowers()} последователей</p></div>
+        <button onclick="setTab('missions')">⚑ Отдать новый приказ</button></div>
+        <div class="map-layout">${renderSeaMap()}${renderMapInspector()}</div>
         <div class="grid">
-          <section class="panel span-8">
-            <div class="panel-head"><div><h2>Что сейчас происходит</h2><p>Активные операции, ожидающие приказы и последние рапорты.</p></div><button onclick="setTab('missions')">Новая миссия</button></div>
-            <div class="split">
-              <div><h3>Активные миссии</h3><div class="list">${activeMissions().length ? activeMissions().map(renderMissionCompact).join('') : empty('Сейчас культ не ведёт активных миссий.')}</div></div>
-              <div><h3>Ожидают ДМ</h3><div class="list">${pendingMissions().length ? pendingMissions().map(renderMissionCompact).join('') : empty('Нет приказов, ожидающих подтверждения ДМа.')}</div></div>
-            </div>
-          </section>
-          <section class="panel span-4"><div class="panel-head"><div><h2>Свободные главари</h2><p>Доступные исполнители для новых приказов.</p></div></div><div class="list">${freeLeaders().length ? freeLeaders().map(renderLeaderMini).join('') : empty('Нет свободных главарей.')}</div></section>
-          <section class="panel span-4"><div class="panel-head"><div><h2>Флоты в движении</h2><p>Море, рейсы и возвращение домой.</p></div></div><div class="list">${fleetsAtSea.length ? fleetsAtSea.map(renderFleetMini).join('') : empty('Все флоты стоят или свободны.')}</div></section>
-          <section class="panel span-4 ${dangerous.length ? 'danger-zone' : ''}"><div class="panel-head"><div><h2>Опасные локации</h2><p>Дурная слава 6+ требует внимания.</p></div></div><div class="list">${dangerous.length ? dangerous.map(renderLocationMini).join('') : empty('Нет локаций с критической дурной славой.')}</div></section>
-          <section class="panel span-4"><div class="panel-head"><div><h2>Последние видения</h2><p>Голос Хидр'Када не всегда говорит словами.</p></div></div><div class="list">${app.visions.slice(-3).reverse().map(renderVisionMini).join('') || empty('Видений пока нет.')}</div></section>
-          <section class="panel span-12"><div class="panel-head"><div><h2>Последняя хроника</h2><p>Краткая история последних тиков.</p></div><button onclick="setTab('chronicle')">Вся хроника</button></div><div class="list">${app.chronicle.filter(c => isDM() || c.visibleToPlayer).slice(-5).reverse().map(renderChronicleCard).join('') || empty('Хроника пока пуста.')}</div></section>
-        </div>
-      `;
+          <section class="panel span-8"><div class="panel-head"><div><h2>⚑ Операции культа</h2><p>Миссии идут своим чередом. Открой приказ, чтобы увидеть подробности.</p></div><button class="ghost small" onclick="setTab('missions')">Все приказы</button></div>
+          <div class="split"><div><h3>В работе · ${active.length}</h3><div class="list">${active.length?active.map(renderMissionCompact).join(''):empty('Нет выполняемых приказов.')}</div></div>
+          <div><h3>Ожидают ДМа · ${pending.length}</h3><div class="list">${pending.length?pending.map(renderMissionCompact).join(''):empty('Все приказы рассмотрены.')}</div></div></div></section>
+          <section class="panel span-4"><div class="panel-head"><div><h2>♜ Совет культа</h2><p>Свободные главари</p></div></div><div class="list">${freeLeaders().length?freeLeaders().slice(0,4).map(renderLeaderMini).join(''):empty('Все главари заняты.')}</div>
+          <div class="actions"><button class="ghost small" onclick="setTab('leaders')">Совет целиком</button></div></section>
+          <section class="panel span-4"><div class="panel-head"><div><h2>⛵ Флоты в море</h2><p>Движение кораблей и отрядов</p></div></div><div class="list">${fleetsAtSea.length?fleetsAtSea.map(renderFleetMini).join(''):empty('Сейчас все флоты свободны или в порту.')}</div><div class="actions"><button class="ghost small" onclick="setTab('fleets')">Реестр кораблей</button></div></section>
+          <section class="panel span-4 ${dangerous.length?'danger-zone':''}"><div class="panel-head"><div><h2>⚠ Угрозы влиянию</h2><p>Поселения с дурной славой 6+</p></div></div><div class="list">${dangerous.length?dangerous.map(renderLocationMini).join(''):empty('Высокая дурная слава нигде не обнаружена.')}</div></section>
+          <section class="panel span-4"><div class="panel-head"><div><h2>◉ Шёпот Бездны</h2><p>Последние видения Хидр'Када</p></div></div><div class="list">${app.visions.slice(-3).reverse().map(renderVisionMini).join('')||empty('Божество хранит молчание.')}</div><div class="actions"><button class="ghost small" onclick="setTab('visions')">Все видения</button></div></section>
+          <section class="panel span-12"><div class="panel-head"><div><h2>≋ Последние события</h2><p>Летопись постепенного возвышения Детей глубины</p></div><button class="ghost small" onclick="setTab('chronicle')">Открыть летопись</button></div>
+          <div class="grid">${chronicle.length?chronicle.map(c=>`<div class="span-4">${renderChronicleCard(c)}</div>`).join(''):empty('Пока не было событий.')}</div></section>
+        </div>`;
     }
 
     function renderMissions() {
@@ -1362,7 +2342,7 @@
     function missionForm() {
       return `
         <form onsubmit="createMission(event)">
-          <div class="form-grid">
+          <div class="form-grid"><div class="full" data-mission-art-preview>${artBanner({actionType:'Торговый рейс'},'missions','editor-art')}</div>
             <div class="full"><label>Название</label><input name="title" required placeholder="Например: Контрабанда в Серую гавань" /></div>
             <div><label>Источник</label><select name="sourceType" onchange="refreshMissionForm(this.form)"><option value="fleet">Флот</option><option value="location">Локация</option></select></div>
             <div><label>Флот / локация</label><select name="sourceId" onchange="refreshMissionLeaders(this.form)">${entityOptions('fleets', '', null, 'Выбери флот')}</select></div>
@@ -1493,6 +2473,8 @@
 
     function applyExpectedOutcome(form) {
       if (!form || !form.actionType) return;
+      const preview=form.querySelector('[data-mission-art-preview]');
+      if(preview)preview.innerHTML=artBanner({actionType:form.actionType.value},'missions','editor-art');
       const out = defaultOutcome(form.actionType.value, form.duration ? form.duration.value : 1);
       if (form.expectedWealth) form.expectedWealth.value = out.wealth;
       if (form.expectedFavor) form.expectedFavor.value = out.favor;
@@ -1534,7 +2516,8 @@
       const pct = m.duration > 0 ? Math.max(0, Math.min(100, ((m.duration - m.remaining) / m.duration) * 100)) : 0;
       const lastReport = m.reports?.length ? m.reports[m.reports.length - 1].text : '';
       return `
-        <div class="item">
+        <div class="item mission-board">
+          ${artBanner(m,'missions')}
           <div class="item-head"><div><div class="item-title">${escapeHtml(m.title)}</div><div class="item-sub">${escapeHtml(m.actionType)} • ${escapeHtml(sourceName)} • ${escapeHtml(leader?.name || 'Без исполнителя')}</div></div>${statusChip(m.status)}</div>
           <div class="chips"><span class="chip blue">Длительность: ${m.duration}</span><span class="chip ${m.remaining <= 0 ? 'good' : ''}">Осталось: ${m.remaining}</span><span class="chip">Тик начала: ${m.startTick ?? '—'}</span></div>
           <div class="clock"><span style="width:${pct}%"></span></div>
@@ -1875,7 +2858,7 @@
       const dm = isDM();
       openModal('Миссия', `
         <form onsubmit="saveMissionModal(event, '${id}')">
-          <div class="form-grid">
+          <div class="form-grid">${sharedArtNotice(m,'missions')}
             <div class="full"><label>Название</label><input name="title" value="${escapeHtml(m.title)}" ${!dm && m.status !== 'Черновик' ? 'readonly' : ''} /></div>
             <div><label>Статус</label><select name="status" ${dm ? '' : 'disabled'}>${optionList(missionStatuses, m.status)}</select></div>
             <div><label>Длительность</label><input name="duration" type="number" min="1" value="${m.duration}" ${dm || m.status === 'Черновик' ? '' : 'readonly'} /></div>
@@ -1894,6 +2877,7 @@
           <div class="modal-actions">${dm ? `<button type="button" class="ghost" onclick="addQuickReport('${id}')">Добавить рапорт</button>` : ''}<button type="submit">Сохранить</button></div>
         </form>
       `);
+      // Общий фон выбирается по типу миссии, индивидуальная загрузка здесь не нужна.
     }
 
     function saveMissionModal(event, id) {
@@ -2022,7 +3006,13 @@
     }
 
     function renderLocations() {
-      return `<div class="panel"><div class="panel-head"><div><h2>Локации</h2><p>Острова, бухты, поселения и городские ячейки культа.</p></div><button onclick="openLocationForm()">Добавить локацию</button></div><div class="grid">${app.locations.length ? app.locations.map(l => `<div class="span-4">${renderLocationCard(l)}</div>`).join('') : `<div class="span-12">${empty('У культа пока нет закреплённых мест.')}</div>`}</div></div>`;
+      return `<div class="game-title"><div><div class="overline">Сеть влияния</div><h2>Поселения и тайные ячейки</h2>
+        <p>Все владения отмечены на морской карте. ДМ может разместить новое поселение кликом по карте или перетащить маркер.</p></div>
+        <button onclick="openLocationForm()">+ Добавить локацию</button></div>
+        <div class="map-layout">${renderSeaMap('locations')}${renderMapInspector()}</div>
+        <section class="panel"><div class="panel-head"><div><h2>Реестр владений</h2><p>Тиры, последователи, угрозы и инфраструктура.</p></div>
+        <span class="chip blue">${app.locations.length} поселений</span></div><div class="grid">
+          ${app.locations.length?app.locations.map(l=>`<div class="span-4">${renderLocationCard(l)}</div>`).join(''):`<div class="span-12">${empty('Пока нет закреплённых мест.')}</div>`}</div></section>`;
     }
 
     function renderLocationCard(l) {
@@ -2030,14 +3020,15 @@
       const cap = leaderCapacity(l);
       const assigned = leadersForLocation(l.id);
       const dangerCls = l.infamy >= 8 ? 'danger-level-2' : l.infamy >= 4 ? 'danger-level-1' : 'danger-level-0';
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${locationTier(l)}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
+      return `<div class="item">${artBanner(l,'locations')}<div class="item-head"><div><div class="item-title">⌖ ${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${locationTier(l)}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
     }
 
     function renderLocationMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="chips"><span class="chip danger">Дурная слава ${l.infamy}/10</span><span class="chip">${escapeHtml(l.type)}</span></div></div>`; }
 
     function openLocationForm(id = '') {
       const l = id ? byId('locations', id) : { name:'', type:'Городская ячейка', tier:1, sailors:0, acolytes:0, portfolk:0, thugs:0, rich:0, infamy:0, status:'Активна', infrastructure:'', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать локацию' : 'Добавить локацию', `<form onsubmit="saveLocation(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type">${optionList(locationTypes, l.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(locationStatuses, l.status)}</select></div><div><label>Тир</label><input name="tier" type="number" min="1" max="5" value="${locationTier(l)}" readonly /></div><div><label>Дурная слава</label><input name="infamy" type="number" min="0" max="10" value="${l.infamy}" ${isDM() ? '' : 'readonly'} /></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${l.sailors}" ${isDM() ? '' : 'readonly'} /></div><div><label>Послушники</label><input name="acolytes" type="number" min="0" value="${l.acolytes}" ${isDM() ? '' : 'readonly'} /></div><div><label>Работяги</label><input name="portfolk" type="number" min="0" value="${l.portfolk}" ${isDM() ? '' : 'readonly'} /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${l.thugs}" ${isDM() ? '' : 'readonly'} /></div><div><label>Богачи</label><input name="rich" type="number" min="0" value="${l.rich}" ${isDM() ? '' : 'readonly'} /></div><div class="full"><label>Инфраструктура</label><textarea name="infrastructure">${escapeHtml(l.infrastructure)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать локацию' : 'Добавить локацию', `<form onsubmit="saveLocation(event, '${id}')"><div class="form-grid">${sharedArtNotice(l,'locations')}<div class="full"><label>Название</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type">${optionList(locationTypes, l.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(locationStatuses, l.status)}</select></div><div><label>Тир</label><input name="tier" type="number" min="1" max="5" value="${locationTier(l)}" readonly /></div><div><label>Дурная слава</label><input name="infamy" type="number" min="0" max="10" value="${l.infamy}" ${isDM() ? '' : 'readonly'} /></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${l.sailors}" onchange="previewSharedArt(this.form,'locations')" ${isDM() ? '' : 'readonly'} /></div><div><label>Послушники</label><input name="acolytes" type="number" min="0" value="${l.acolytes}" onchange="previewSharedArt(this.form,'locations')" ${isDM() ? '' : 'readonly'} /></div><div><label>Работяги</label><input name="portfolk" type="number" min="0" value="${l.portfolk}" onchange="previewSharedArt(this.form,'locations')" ${isDM() ? '' : 'readonly'} /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${l.thugs}" onchange="previewSharedArt(this.form,'locations')" ${isDM() ? '' : 'readonly'} /></div><div><label>Богачи</label><input name="rich" type="number" min="0" value="${l.rich}" onchange="previewSharedArt(this.form,'locations')" ${isDM() ? '' : 'readonly'} /></div><div class="full"><label>Инфраструктура</label><textarea name="infrastructure">${escapeHtml(l.infrastructure)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      // Иллюстрация берётся из общей библиотеки выбранного тира.
     }
 
     function saveLocation(event, id) {
@@ -2068,7 +3059,12 @@
         obj.thugs = obj.thugs || 0;
         obj.rich = obj.rich || 0;
       }
-      if (!id) app.locations.push(obj);
+      if (!id) {
+        if (pendingMapPosition) { obj.mapX=pendingMapPosition.x; obj.mapY=pendingMapPosition.y; }
+        app.locations.push(obj);
+        selectedMapLocationId=obj.id;
+      }
+      pendingMapPosition=null;
       saveState(false); closeModal(); render();
     }
 
@@ -2080,7 +3076,20 @@
     }
 
     function renderLeaderCard(l) {
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div></div>${statusChip(l.status)}</div><div class="chips"><span class="chip">Миссия: ${escapeHtml(nameOf('missions', l.currentMissionId, '—'))}</span></div>${l.description ? `<p class="item-sub">${escapeHtml(l.description)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLeaderForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('leaders','${l.id}')">Удалить</button></div></div>`;
+      const glyph = l.type === 'Капитан флота' ? '⛵' : l.type === 'Старший жрец' ? '◉' : '♜';
+      return `<div class="item leader-card">
+        <div class="leader-art-shell">${artBanner(l,'leaders')}</div>
+        <div class="leader-card-top">
+          <span class="leader-medallion">${glyph}</span>
+          <div class="leader-card-identity"><div class="item-title">${escapeHtml(l.name)}</div>
+          <div class="item-sub">${escapeHtml(l.type)} · ${escapeHtml(assignmentName(l))}</div></div>
+          <div class="leader-card-status">${statusChip(l.status)}</div>
+        </div>
+        <div class="chips"><span class="chip">Миссия: ${escapeHtml(nameOf('missions',l.currentMissionId,'—'))}</span></div>
+        ${l.description ? `<p class="item-sub">${escapeHtml(l.description)}</p>` : ''}
+        ${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}
+        <div class="actions"><button class="small ghost" onclick="openLeaderForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('leaders','${l.id}')">Удалить</button></div>
+      </div>`;
     }
 
     function renderLeaderMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • ${escapeHtml(assignmentName(l))}</div><div class="actions"><button class="small" onclick="prefillMission('', '', '${l.id}')">Миссия</button></div></div>`; }
@@ -2089,7 +3098,8 @@
     function openLeaderForm(id = '') {
       const l = id ? byId('leaders', id) : { name:'', type:'Капитан флота', assignmentId:'', status:'Свободен', currentMissionId:'', description:'', playerNotes:'', dmNotes:'' };
       const assignmentOpts = l.type === 'Капитан флота' ? entityOptions('fleets', l.assignmentId, null, 'Резерв') : entityOptions('locations', l.assignmentId, null, 'Без локации');
-      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid"><div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form)">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid">${sharedArtNotice(l,'leaders')}<div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form);previewSharedArt(this.form,'leaders')">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      // Иллюстрация берётся из общей библиотеки выбранной роли.
     }
 
     function refreshLeaderAssignment(form) {
@@ -2115,7 +3125,7 @@
     }
 
     function renderVisionCard(v) {
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(v.title)}</div><div class="item-sub">${escapeHtml(v.type)} • Тик ${v.tick}</div></div>${statusChip(v.status)}</div><p class="item-sub">${escapeHtml(v.text)}</p>${v.reward ? `<p class="item-sub"><strong>Награда / последствия:</strong> ${escapeHtml(v.reward)}</p>` : ''}${isDM() && v.dmNotes ? `<p class="item-sub"><strong>Скрытый смысл:</strong> ${escapeHtml(v.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openVisionForm('${v.id}')">Редактировать</button>${isDM() ? `<button class="small danger" onclick="deleteEntity('visions','${v.id}')">Удалить</button>` : ''}</div></div>`;
+      return `<div class="item vision-art">${artBanner(v,'visions')}<div class="item-head"><div><div class="item-title">◉ ${escapeHtml(v.title)}</div><div class="item-sub">${escapeHtml(v.type)} • Тик ${v.tick}</div></div>${statusChip(v.status)}</div><p class="item-sub">${escapeHtml(v.text)}</p>${v.reward ? `<p class="item-sub"><strong>Награда / последствия:</strong> ${escapeHtml(v.reward)}</p>` : ''}${isDM() && v.dmNotes ? `<p class="item-sub"><strong>Скрытый смысл:</strong> ${escapeHtml(v.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openVisionForm('${v.id}')">Редактировать</button>${isDM() ? `<button class="small danger" onclick="deleteEntity('visions','${v.id}')">Удалить</button>` : ''}</div></div>`;
     }
 
     function renderVisionMini(v) { return `<div class="item"><div class="item-title">${escapeHtml(v.title)}</div><div class="item-sub">${escapeHtml(v.type)} • ${escapeHtml(v.status)}</div></div>`; }
@@ -2123,7 +3133,8 @@
     function openVisionForm(id = '') {
       if (!isDM() && !id) return;
       const v = id ? byId('visions', id) : { title:'', type:'Видение', tick:app.cult.currentTick, text:'', status:'Активно', missionId:'', reward:'', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать видение' : 'Создать видение', `<form onsubmit="saveVision(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="title" required value="${escapeHtml(v.title)}" ${isDM() ? '' : 'readonly'} /></div><div><label>Тип</label><select name="type" ${isDM() ? '' : 'disabled'}>${optionList(visionTypes, v.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(visionStatuses, v.status)}</select></div><div><label>Тик</label><input name="tick" type="number" value="${v.tick}" ${isDM() ? '' : 'readonly'} /></div><div><label>Связанная миссия</label><select name="missionId" ${isDM() ? '' : 'disabled'}>${entityOptions('missions', v.missionId, null, 'Без миссии')}</select></div><div class="full"><label>Текст</label><textarea name="text" ${isDM() ? '' : 'readonly'}>${escapeHtml(v.text)}</textarea></div><div class="full"><label>Награда / последствия</label><textarea name="reward" ${isDM() ? '' : 'readonly'}>${escapeHtml(v.reward)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(v.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(v.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать видение' : 'Создать видение', `<form onsubmit="saveVision(event, '${id}')"><div class="form-grid">${artEditor(v,'visions')}<div class="full"><label>Название</label><input name="title" required value="${escapeHtml(v.title)}" ${isDM() ? '' : 'readonly'} /></div><div><label>Тип</label><select name="type" ${isDM() ? '' : 'disabled'}>${optionList(visionTypes, v.type)}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(visionStatuses, v.status)}</select></div><div><label>Тик</label><input name="tick" type="number" value="${v.tick}" ${isDM() ? '' : 'readonly'} /></div><div><label>Связанная миссия</label><select name="missionId" ${isDM() ? '' : 'disabled'}>${entityOptions('missions', v.missionId, null, 'Без миссии')}</select></div><div class="full"><label>Текст</label><textarea name="text" ${isDM() ? '' : 'readonly'}>${escapeHtml(v.text)}</textarea></div><div class="full"><label>Награда / последствия</label><textarea name="reward" ${isDM() ? '' : 'readonly'}>${escapeHtml(v.reward)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(v.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(v.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      initEntityArtForm(v,'visions');
     }
 
     function saveVision(event, id) {
@@ -2132,6 +3143,7 @@
       const obj = id ? byId('visions', id) : { id: uid('vision') };
       if (isDM()) { obj.title = f.title.value; obj.type = f.type.value; obj.status = f.status.value; obj.tick = Number(f.tick.value); obj.missionId = f.missionId.value; obj.text = f.text.value; obj.reward = f.reward.value; obj.dmNotes = f.dmNotes?.value || ''; }
       obj.playerNotes = f.playerNotes.value;
+      saveEntityArt(f,obj);
       if (!id) app.visions.push(obj);
       saveState(false); closeModal(); render();
     }
@@ -2139,7 +3151,7 @@
     function renderChronicle() {
       const visible = app.chronicle.filter(c => isDM() || c.visibleToPlayer);
       const ticks = [...new Set(visible.map(c => c.tick))].sort((a,b) => b-a);
-      return `<div class="panel"><div class="panel-head"><div><h2>Хроника</h2><p>История развития культа по тикам.</p></div>${isDM() ? `<button onclick="openChronicleForm()">Создать запись</button>` : ''}</div>${ticks.map(t => `<h3>Тик ${t}</h3><div class="list" style="margin-bottom:16px;">${visible.filter(c => c.tick === t).map(renderChronicleCard).join('')}</div>`).join('') || empty('Хроника пока пуста.')}</div>`;
+      return `<div class="panel"><div class="panel-head"><div><h2>Хроника</h2><p>История развития культа по тикам.</p></div>${isDM() ? `<button onclick="openChronicleForm()">Создать запись</button>` : ''}</div>${ticks.map(t => `<h3>Тик ${t}</h3><div class="list chronicle-timeline" style="margin-bottom:23px;">${visible.filter(c => c.tick === t).map(renderChronicleCard).join('')}</div>`).join('') || empty('Хроника пока пуста.')}</div>`;
     }
 
     function renderChronicleCard(c) {
@@ -2166,7 +3178,7 @@
     }
 
     function renderDM() {
-      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время и автоматически уменьшает срок активных миссий.</p></div></div><div class="notice">Активные миссии потеряют 1 тик длительности. Когда у миссии останется 0 тиков, она получит статус «Готова к завершению», а ДМ сможет подтвердить итог одной кнопкой.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button></div></section></div>`;
+      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время и автоматически уменьшает срок активных миссий.</p></div></div><div class="notice">Активные миссии потеряют 1 тик длительности. Когда у миссии останется 0 тиков, она получит статус «Готова к завершению», а ДМ сможет подтвердить итог одной кнопкой.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button></div></section>${renderSharedArtLibrary()}</div>`;
     }
 
     function dmResourceForm() {
@@ -2222,7 +3234,7 @@
       document.getElementById('modal').showModal();
     }
 
-    function closeModal() { document.getElementById('modal').close(); }
+    function closeModal() { pendingMapPosition=null; document.getElementById('modal').close(); }
 
     function toast(text) {
       const el = document.getElementById('toast');
@@ -2233,6 +3245,17 @@
     }
 
     async function bootstrap() {
+      // Opening the downloaded HTML is a safe local preview; it cannot overwrite cloud data.
+      if (location.protocol === 'file:') {
+        const local = loadState();
+        if (local?.cult) app=local;
+        mode='player';
+        normalizeState();
+        syncStatus='Локальный просмотр';
+        cloudSaveEnabled=false;
+        render();
+        return;
+      }
       renderLoading();
       const loaded = await loadStateFromSupabase();
       cloudSaveEnabled = loaded;
