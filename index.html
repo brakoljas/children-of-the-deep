@@ -2535,13 +2535,35 @@
         </div>`;
     }
 
+    function completedMissionsNewestFirst() {
+      // Хроника хранит реальный порядок завершения, включая несколько миссий в одном тике.
+      // Старые сохранения без такой записи сортируются по тику завершения.
+      const chronicleOrder = new Map();
+      (app.chronicle || []).forEach((entry, index) => {
+        if (entry.type === 'Миссия' && entry.related) chronicleOrder.set(entry.related, index);
+      });
+      return app.missions
+        .map((mission, originalIndex) => ({ mission, originalIndex }))
+        .filter(({ mission }) => mission.status === 'Завершена')
+        .sort((a, b) => {
+          const aLogIndex = chronicleOrder.get(a.mission.id);
+          const bLogIndex = chronicleOrder.get(b.mission.id);
+          const aTick = Number(a.mission.endTick ?? (aLogIndex !== undefined ? app.chronicle[aLogIndex]?.tick : -1));
+          const bTick = Number(b.mission.endTick ?? (bLogIndex !== undefined ? app.chronicle[bLogIndex]?.tick : -1));
+          if (aTick !== bTick) return bTick - aTick;
+          if (aLogIndex !== bLogIndex) return (bLogIndex ?? -1) - (aLogIndex ?? -1);
+          return b.originalIndex - a.originalIndex;
+        })
+        .map(({ mission }) => mission);
+    }
+
     function renderMissions() {
       const grouped = ['Черновик', 'Ожидает ДМ', 'Активна', 'Задержана', 'Осложнена', 'Готова к завершению', 'Завершена', 'Провалена', 'Отменена'];
       return `
         <div class="grid">
           <section class="panel span-5"><div class="panel-head"><div><h2>Новая миссия</h2><p>Игрок формулирует приказ. ДМ подтверждает длительность и последствия.</p></div></div>${missionForm()}</section>
           <section class="panel span-7"><div class="panel-head"><div><h2>Список миссий</h2><p>Долгие миссии занимают исполнителей на несколько тиков.</p></div></div>${grouped.map(status => {
-            const ms = app.missions.filter(m => m.status === status);
+            const ms = status === 'Завершена' ? completedMissionsNewestFirst() : app.missions.filter(m => m.status === status);
             if (!ms.length) return '';
             return `<h3>${status}</h3><div class="list" style="margin-bottom:14px;">${ms.map(renderMissionCard).join('')}</div>`;
           }).join('') || empty('Миссий пока нет. Создай первый приказ для культа.')}</section>
@@ -3113,9 +3135,11 @@
         m.losses = f.losses ? f.losses.value : '';
         m.reports = parseReports(f.reportsText ? f.reportsText.value : '');
         if (['Завершена','Провалена','Отменена'].includes(m.status)) {
-          m.endTick = app.cult.currentTick;
-          releaseMissionActors(m);
-          if (!['Завершена','Провалена','Отменена'].includes(oldStatus)) addMissionToChronicle(m);
+          if (!['Завершена','Провалена','Отменена'].includes(oldStatus)) {
+            m.endTick = app.cult.currentTick;
+            releaseMissionActors(m);
+            addMissionToChronicle(m);
+          }
         } else if (m.status === 'Активна' && oldStatus !== 'Активна') {
           startMission(m);
         }
