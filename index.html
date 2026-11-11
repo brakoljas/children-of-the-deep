@@ -1020,6 +1020,9 @@
     .entity-art.leader-art {height:106px;}
     .entity-art.mission-art {height:88px;}
     .entity-art.vision-art-banner {height:135px;}
+    .entity-art.fleet-art {height:119px;}
+    .entity-art.ship-art {height:93px;}
+    .entity-art.mini-art {height:65px;min-height:65px;margin-bottom:9px;}
     .entity-art.inspector-art {height:112px;margin-bottom:14px;}
     .entity-art.editor-art {height:152px;margin:0 0 12px;}
     .art-editor {grid-column:1 / -1;margin-top:9px;padding:12px;border:1px solid rgba(122,193,180,.22);
@@ -1185,7 +1188,7 @@
       const fleet = uid('fleet');
       const vision = uid('vision');
       return {
-        ui: { mode: 'player', artLibrary: {tiers:{}, leaders:{}, missions:{}} },
+        ui: { mode: 'player', artLibrary: {tiers:{}, leaders:{}, missions:{}, fleets:{}, ships:{}} },
         cult: {
           name: 'Дети глубины',
           leaderName: 'Айзек',
@@ -1230,6 +1233,25 @@
     const ART_CACHE = new Map();
     // Одна общая иллюстрация на каждый стандартный тип миссии.
     const MISSION_ART_ACTIONS = [...new Set(Object.values(missionActions).flat())];
+    const SHARED_SHIP_ART = {
+      'Лодка':'boat',
+      'Когг':'cog',
+      'Ладья':'longship',
+      'Парусный корабль':'sailship',
+      'Военный корабль':'warship',
+      'Галера':'galley',
+      'Другое':'other'
+    };
+    const SHIP_ART_PROMPTS = {
+      'Лодка':'Небольшая деревянная лодка прибрежного культа у туманного причала. Невысокие борта, вёсла, простая снасть, мокрые доски. Без роскоши и украшений.',
+      'Когг':'Приземистый средневековый торговый когг с высокими бортами и одним квадратным парусом входит в пасмурную гавань. Груз и канаты на палубе.',
+      'Ладья':'Узкая длинная северная ладья с рядами вёсел и одним парусом проходит вдоль скалистого берега. Тёмное дерево, простое вооружение.',
+      'Парусный корабль':'Средневековый двухмачтовый парусный корабль культа идёт по холодному морю в плотном тумане. Приземлённый силуэт, потемневший корпус.',
+      'Военный корабль':'Крупный вооружённый парусный корабль с усиленными бортами, бойницами и несколькими мачтами. Мрачная облачность, строгий дисциплинированный экипаж.',
+      'Галера':'Длинная средневековая боевая галера с рядами вёсел идёт вдоль каменистого побережья. Низкий силуэт, один парус, готовность к абордажу.',
+      'Другое':'Необычное, но правдоподобное средневековое морское судно с характерным деревянным корпусом и снастями. Тёмное море, туман, без вычурной магии.'
+    };
+    const FLEET_ART_PROMPT = 'Небольшая эскадра из нескольких средневековых деревянных кораблей идёт сквозь морской туман вдоль далёкого берега. Разные силуэты, плотный строй, тёмная вода, незаметная символика тайного морского культа.';
     const MISSION_ART_PROMPTS = {
       'Торговый рейс':'Купеческий парусник разгружается в оживлённой средневековой гавани. Бочки, мешки, торговцы, докеры, утренний туман.',
       'Контрабанда':'Ночная разгрузка корабля в укромной бухте. Люди скрытно переносят ящики между лодкой и берегом при свете одного фонаря.',
@@ -1265,7 +1287,49 @@
       area.remove();
     }
 
+    function svgVesselArt(kind) {
+      // Нейтральные встроенные силуэты: без внешних запросов и без новых файлов на GitHub.
+      const style=kind.startsWith('ship-')?kind.slice(5):'fleet';
+      const hull=(type,x,y,scale=1)=>{
+        const galley=type==='galley',boat=type==='boat',longship=type==='longship';
+        const len=boat?175:galley?340:longship?315:type==='warship'?330:275;
+        const depth=boat?30:type==='warship'?75:49;
+        const left=-len/2,right=len/2;
+        let hullPath=`M${left} 0 Q${left+20} ${depth*.85} ${left+85} ${depth} H${right-80} Q${right-14} ${depth*.75} ${right} -4 L${right-15} 6 L${left+14} 6 Z`;
+        let details=`<path d="${hullPath}" fill="#0a1c26" stroke="#638681" stroke-opacity=".7" stroke-width="3"/>`;
+        details+=`<path d="M${left+27} 10H${right-32}" stroke="#9ab1a2" stroke-opacity=".26" stroke-width="3"/>`;
+        if(type==='warship')details+=`<path d="M${left+15} -3v-42h57v42 M${right-80} -3v-35h53v35" fill="#0b242c" stroke="#638681" stroke-opacity=".55" stroke-width="3"/>`;
+        if(type==='cog')details+=`<path d="M${left+10} -1v-30h56v30 M${right-72} -1v-43h56v43" fill="#102a31" stroke="#658784" stroke-width="3"/>`;
+        if(longship)details+=`<path d="M${left+10} 5q-23-40 2-54 M${right-14} 4q25-34 7-54" fill="none" stroke="#708d82" stroke-width="6"/>`;
+        const mast=(x,height=150)=>`<path d="M${x} 0V${-height}" stroke="#9baf9c" stroke-opacity=".72" stroke-width="5"/>`;
+        const square=(x,w=91,h=104,top=-150)=>`<path d="M${x-w/2} ${top+14}Q${x} ${top+30} ${x+w/2} ${top+14}V${top+h}Q${x} ${top+h-19} ${x-w/2} ${top+h}Z" fill="#789a91" fill-opacity=".56" stroke="#b7c3a4" stroke-opacity=".5" stroke-width="2"/>`;
+        const triangle=(x,w=88,top=-150)=>`<path d="M${x-8} ${top+8}L${x-8} -7 H${x+w}Z" fill="#789b97" fill-opacity=".48" stroke="#b6c3aa" stroke-opacity=".45" stroke-width="2"/>`;
+        if(boat){details+=mast(5,94)+triangle(5,72,-95);}
+        else if(type==='cog'){details+=mast(0,171)+square(0,124,111,-160);}
+        else if(type==='longship'){details+=mast(0,155)+square(0,116,110,-152);}
+        else if(type==='galley'){details+=mast(5,128)+triangle(5,91,-128);}
+        else if(type==='sailship'){details+=mast(-63,167)+mast(78,133)+triangle(-63,120,-167)+triangle(78,93,-133);}
+        else if(type==='warship'){details+=mast(-85,196)+mast(60,170)+mast(125,123)+square(-85,110,89,-182)+square(60,112,95,-157)+triangle(125,53,-119);}
+        else{details+=mast(-30,145)+triangle(-30,104,-145)+mast(82,100)+triangle(82,66,-99);}
+        if(galley||longship){
+          for(let k=0;k<11;k++){
+            const ox=left+30+k*(len-55)/10;
+            details+=`<path d="M${ox} 11l-19 43" stroke="#8ba79b" stroke-opacity=".58" stroke-width="3"/>`;
+          }
+        }
+        details+=`<path d="M${left-12} 17q${len*.35} 13 ${len*.65} 0" stroke="#94b6b2" stroke-opacity=".24" fill="none" stroke-width="3"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${scale})">${details}</g>`;
+      };
+      const fleet=style==='fleet';
+      const scene=fleet
+        ?hull('cog',270,297,.72)+hull('warship',825,355,1.1)+hull('sailship',1170,293,.62)
+        :hull(style,695,343,1.25);
+      const waves=Array.from({length:12},(_,i)=>`<path d="M${i*130-60} ${390+i%3*22}q45-17 90 0t90 0" fill="none" stroke="#88b8b1" opacity="${.07+(i%4)*.02}" stroke-width="3"/>`).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 470" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="seaSky" x2=".45" y2="1"><stop stop-color="#163c47"/><stop offset=".55" stop-color="#244e56"/><stop offset="1" stop-color="#071d2a"/></linearGradient><radialGradient id="mist"><stop stop-color="#9cbbb0" stop-opacity=".2"/><stop offset="1" stop-color="#759a9c" stop-opacity="0"/></radialGradient></defs><rect width="1280" height="470" fill="url(#seaSky)"/><ellipse cx="930" cy="138" rx="570" ry="220" fill="url(#mist)"/><path d="M0 298Q250 263 460 296T1280 268V470H0Z" fill="#113440" opacity=".85"/><path d="M0 350Q200 314 450 337T910 340T1280 320V470H0Z" fill="#0b2936" opacity=".83"/>${scene}${waves}<path d="M0 459h1280" stroke="#b1bcaa" stroke-opacity=".16"/></svg>`;
+    }
+
     function svgArt(kind) {
+      if(kind==='fleet-default' || kind.startsWith('ship-'))return svgVesselArt(kind);
       const seed = kind.startsWith('tier-') ? Number(kind.split('-')[1]) : 0;
       const priest = kind==='leader-priest', captain=kind==='leader-captain', cell=kind==='leader-cell';
       const ritual = kind==='mission-ritual', pirate=kind==='mission-pirate', trade=kind==='mission-trade', covert=kind==='mission-covert';
@@ -1318,6 +1382,8 @@
     }
 
     function defaultArtKind(entity, collection) {
+      if (collection === 'fleets') return 'fleet-default';
+      if (collection === 'ships') return 'ship-'+(SHARED_SHIP_ART[entity?.type]||'other');
       if (collection === 'locations') return 'tier-' + Math.max(1,Math.min(5,locationTier(entity)));
       if (collection === 'leaders') return entity.type === 'Старший жрец' ? 'leader-priest' : entity.type === 'Глава ячейки' ? 'leader-cell' : 'leader-captain';
       if (collection === 'visions') return 'vision-abyss';
@@ -1348,6 +1414,8 @@
       'Глава ячейки':'cell'
     };
     function sharedArtKey(entity, collection) {
+      if(collection==='fleets') return ['fleets','default'];
+      if(collection==='ships') return ['ships',shipTypes.includes(entity?.type) ? entity.type : 'Другое'];
       if(collection==='locations') return ['tiers',String(locationTier(entity))];
       if(collection==='leaders') return ['leaders',SHARED_LEADER_ART[entity?.type] || 'captain'];
       if(collection==='missions') return ['missions',MISSION_ART_ACTIONS.includes(entity?.actionType) ? entity.actionType : 'Другое'];
@@ -1358,32 +1426,33 @@
       return key ? usableArtSource(app.ui?.artLibrary?.[key[0]]?.[key[1]]) : '';
     }
     function artSrc(entity, collection) {
-      if(collection==='locations' || collection==='leaders' || collection==='missions')
+      if(['locations','leaders','missions','fleets','ships'].includes(collection))
         return sharedArtSource(entity,collection) || defaultArtUri(entity||{},collection);
       return usableArtSource(entity?.artImage) || defaultArtUri(entity||{},collection);
     }
     function artBanner(entity,collection,compact='') {
-      const labels={locations:'Скрытое влияние',leaders:'Фигура культа',missions:'Морское донесение',visions:'Откровение Бездны'};
+      const labels={locations:'Скрытое влияние',leaders:'Фигура культа',missions:'Морское донесение',visions:'Откровение Бездны',fleets:'Флот культа',ships:'Судно культа'};
       const locTier=collection==='locations' ? locationTier(entity) : 0;
       const caption=collection==='locations' ? `Тир ${locTier} · ${ART_TIER_NAMES[locTier-1]}` :
-                    collection==='leaders' ? entity.type||'Главарь' : collection==='missions' ? entity.actionType||'Приказ культа' : 'Голос глубин';
+                    collection==='leaders' ? entity.type||'Главарь' : collection==='missions' ? entity.actionType||'Приказ культа' :
+                    collection==='fleets' ? 'Флот Детей глубины' : collection==='ships' ? entity.type||'Корабль' : 'Голос глубин';
       const def=defaultArtUri(entity,collection);
       const src=artSrc(entity,collection);
-      const isShared=collection==='locations' || collection==='leaders' || collection==='missions';
-      const hasCustom=isShared ? !!sharedArtSource(entity,collection) : !!usableArtSource(entity.artImage);
-      const cls={locations:'location-art',leaders:'leader-art',missions:'mission-art',visions:'vision-art-banner'}[collection]||'';
+      const isShared=['locations','leaders','missions','fleets','ships'].includes(collection);
+      const hasCustom=isShared ? !!sharedArtSource(entity,collection) : !!usableArtSource(entity?.artImage);
+      const cls={locations:'location-art',leaders:'leader-art',missions:'mission-art',visions:'vision-art-banner',fleets:'fleet-art',ships:'ship-art'}[collection]||'';
       return `<div class="entity-art ${cls} ${compact}" aria-label="${escapeHtml(labels[collection]||'Иллюстрация')}"><img alt="" loading="lazy" src="${escapeHtml(src)}" data-fallback="${escapeHtml(def)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(caption)}</span>${hasCustom ? `<span class="art-origin">${isShared?'Общий арт':'Свой арт'}</span>` : ''}</div>`;
     }
     // Настройки общих иллюстраций доступны ДМу на отдельной панели.
     function sharedArtNotice(entity,collection) {
-      const label=collection==='locations'?'текущего тира':collection==='missions'?'этого типа миссий':'этого типа главарей';
+      const label=collection==='locations'?'текущего тира':collection==='missions'?'этого типа миссий':collection==='ships'?'этого типа судов':collection==='fleets'?'флотов':'этого типа главарей';
       return `<div class="full" style="min-width:0"><div data-shared-art-preview>${artBanner(entity,collection,'editor-art')}</div>
         <p class="art-shared-hint">Это общий фон для всех ${label}. Изменить его можно в разделе <b>ДМ → Библиотека иллюстраций</b>.</p></div>`;
     }
     function previewSharedArt(form,collection) {
       if(!form)return;
       const entity={};
-      if(collection==='leaders') entity.type=form.elements.namedItem('type')?.value;
+      if(collection==='leaders' || collection==='ships') entity.type=form.elements.namedItem('type')?.value;
       if(collection==='missions') entity.actionType=form.elements.namedItem('actionType')?.value;
       if(collection==='locations') {
         ['sailors','acolytes','portfolk','thugs','rich'].forEach(k=>entity[k]=Number(form.elements.namedItem(k)?.value)||0);
@@ -1393,21 +1462,24 @@
       if(preview)preview.innerHTML=artBanner(entity,collection,'editor-art');
     }
     function getSharedArtSlot(group,key) {
-      if(!['tiers','leaders','missions'].includes(group))return null;
+      if(!['tiers','leaders','missions','fleets','ships'].includes(group))return null;
       const k=String(key);
+      if(group==='fleets' && k!=='default')return null;
+      if(group==='ships' && !shipTypes.includes(k))return null;
       if(group==='tiers' && !/^[1-5]$/.test(k))return null;
       if(group==='leaders' && !['captain','priest','cell'].includes(k))return null;
       if(group==='missions' && !MISSION_ART_ACTIONS.includes(k))return null;
       return [group,k];
     }
     function sharedArtSlot(group,key,title) {
-      const kind=group==='tiers'?`tier-${key}`:group==='leaders'?`leader-${key}`:defaultArtKind({actionType:key},'missions');
+      const kind=group==='tiers'?`tier-${key}`:group==='leaders'?`leader-${key}`:group==='fleets'?'fleet-default':group==='ships'?`ship-${SHARED_SHIP_ART[key]}`:defaultArtKind({actionType:key},'missions');
       const fallback=artByKind(kind);
       const custom=usableArtSource(app.ui?.artLibrary?.[group]?.[key]);
       const src=custom || fallback;
       const path=custom && !custom.startsWith('data:') ? custom : '';
-      const inputId=`shared-art-${group}-${group==='missions'?MISSION_ART_ACTIONS.indexOf(key):key}`;
-      const promptButton=group==='missions'?`<button type="button" class="small ghost" onclick="copyMissionArtPrompt('${escapeHtml(key)}')">Скопировать промпт</button>`:'';
+      const inputId=`shared-art-${group}-${group==='missions'?MISSION_ART_ACTIONS.indexOf(key):group==='ships'?shipTypes.indexOf(key):key}`;
+      const promptButton=group==='missions'?`<button type="button" class="small ghost" onclick="copyMissionArtPrompt('${escapeHtml(key)}')">Скопировать промпт</button>`:
+        (group==='fleets'||group==='ships')?`<button type="button" class="small ghost" onclick="copyVesselArtPrompt('${group}','${escapeHtml(key)}')">Скопировать промпт</button>`:'';
       return `<div class="art-library-card">
         <div class="art-library-title"><strong>${escapeHtml(title)}</strong><span>${custom?'Свой фон':'Стандартный фон'}</span></div>
         <div class="entity-art art-library-preview"><img alt="" src="${escapeHtml(src)}" data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(title)}</span></div>
@@ -1416,6 +1488,13 @@
           <button type="button" class="small ghost" onclick="resetSharedArt('${group}','${key}')" ${custom?'':'disabled'}>Вернуть стандартный</button>${promptButton}</div>
         <label class="art-library-url">Ссылка или путь к файлу<input type="text" value="${escapeHtml(path)}" placeholder="images/${kind}.webp" onchange="setSharedArtUrl('${group}','${key}',this.value)" /></label>
       </div>`;
+    }
+    function copyVesselArtPrompt(group,key) {
+      const scene=group==='fleets'?FLEET_ART_PROMPT:SHIP_ART_PROMPTS[key];
+      if(!scene)return;
+      const full=`${scene} ${MISSION_ART_BASE_PROMPT}`;
+      if(navigator.clipboard?.writeText)navigator.clipboard.writeText(full).then(()=>toast('Промпт скопирован.'),()=>fallbackCopyPrompt(full));
+      else fallbackCopyPrompt(full);
     }
     function renderSharedArtLibrary() {
       if(!isDM())return '';
@@ -1427,10 +1506,14 @@
         return `<details class="art-library-section"><summary>${escapeHtml(role)} · ${unique.length} типов</summary><div class="art-library-grid">${unique.map((action)=>sharedArtSlot('missions',action,action)).join('')}</div></details>`;
       }).join('');
       const other=sharedArtSlot('missions','Другое','Другое · универсальный фон');
+      const fleets=sharedArtSlot('fleets','default','Общий фон флотов');
+      const ships=shipTypes.map(type=>sharedArtSlot('ships',type,type)).join('');
       return `<section id="sharedArtLibrary" class="panel span-12">
-        <div class="panel-head"><div><h2>Библиотека иллюстраций</h2><p>Общие иллюстрации по тирам поселений, ролям главарей и видам миссий. Обновление категории сразу меняет все её карточки.</p></div></div>
+        <div class="panel-head"><div><h2>Библиотека иллюстраций</h2><p>Общие иллюстрации по тирам поселений, ролям главарей, видам миссий, флотам и типам кораблей. Изменение категории сразу обновляет все её карточки.</p></div></div>
         <details class="art-library-section"><summary>Развитие поселений · 5 тиров</summary><div class="art-library-grid">${tiers}</div></details>
         <details class="art-library-section"><summary>Архетипы главарей · 3 роли</summary><div class="art-library-grid">${leaders}</div></details>
+        <details class="art-library-section"><summary>Флоты · общий фон</summary><div class="art-library-grid">${fleets}</div></details>
+        <details class="art-library-section"><summary>Корабли · ${shipTypes.length} типов</summary><div class="art-library-grid">${ships}</div></details>
         <h3>Миссии · ${MISSION_ART_ACTIONS.length} видов</h3>
         <p class="art-library-hint">Выбирай категорию ниже. Иллюстрация применяется к любой миссии с этим типом действия. Кнопка «Скопировать промпт» выдаёт готовое описание сцены для генерации картинки.</p>
         ${missionGroups}
@@ -1442,7 +1525,7 @@
       const slot=getSharedArtSlot(group,key);
       if(!isDM() || !slot)return;
       app.ui=app.ui || {};
-      app.ui.artLibrary=app.ui.artLibrary || {tiers:{},leaders:{},missions:{}};
+      app.ui.artLibrary=app.ui.artLibrary || {tiers:{},leaders:{},missions:{},fleets:{},ships:{}};
       app.ui.artLibrary[group]=app.ui.artLibrary[group] || {};
       if(url)app.ui.artLibrary[group][key]=url;
       else delete app.ui.artLibrary[group][key];
@@ -1788,8 +1871,8 @@
 
     function normalizeState() {
       app.ui = app.ui || { mode: 'player' };
-      if (!app.ui.artLibrary || typeof app.ui.artLibrary !== 'object') app.ui.artLibrary={tiers:{},leaders:{},missions:{}};
-      for (const group of ['tiers','leaders','missions']) {
+      if (!app.ui.artLibrary || typeof app.ui.artLibrary !== 'object') app.ui.artLibrary={tiers:{},leaders:{},missions:{},fleets:{},ships:{}};
+      for (const group of ['tiers','leaders','missions','fleets','ships']) {
         if (!app.ui.artLibrary[group] || typeof app.ui.artLibrary[group] !== 'object') app.ui.artLibrary[group]={};
       }
       app.cult = app.cult || { name: 'Дети глубины', leaderName: 'Айзек', currentTick: 1, daysPerTick: 5, wealth: 1, favor: 0 };
@@ -2203,7 +2286,7 @@
         const fleetCaptain=byId('leaders',selectedFleet.captainId);
         const crew=fleetShips.reduce((acc,ship)=>acc+shipFollowers(ship),0);
         const location=byId('locations',selectedFleet.locationId);
-        return `<section class="panel map-inspector"><div><div class="intel-kicker">Морское донесение · флот</div>
+        return `<section class="panel map-inspector">${artBanner(selectedFleet,'fleets','inspector-art')}<div><div class="intel-kicker">Морское донесение · флот</div>
           <div class="intel-name">⛵ ${escapeHtml(selectedFleet.name)}</div>
           <div class="intel-type">${escapeHtml(selectedFleet.status)} · ${escapeHtml(location?.name||'В открытом море')}</div>
           <div class="intel-facts" style="margin-top:16px"><div><small>Корабли</small><b>${fleetShips.length}</b></div><div><small>Экипаж</small><b>${crew}</b></div></div>
@@ -2952,21 +3035,21 @@
     function renderFleetCard(f) {
       const ships = shipsInFleet(f.id);
       const crew = ships.reduce((s, x) => s + shipFollowers(x), 0);
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(f.name)} <span class="chip blue">Кораблей: ${ships.length}</span></div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><details class="fleet-ships">
+      return `<div class="item">${artBanner(f,'fleets')}<div class="item-head"><div><div class="item-title">${escapeHtml(f.name)} <span class="chip blue">Кораблей: ${ships.length}</span></div><div class="item-sub">Капитан: ${escapeHtml(nameOf('leaders', f.captainId))} • Локация: ${escapeHtml(nameOf('locations', f.locationId))}</div></div>${statusChip(f.status)}</div><div class="chips"><span class="chip">Кораблей: ${ships.length}</span><span class="chip">Экипаж: ${crew}</span><span class="chip">Миссия: ${escapeHtml(nameOf('missions', f.currentMissionId, '—'))}</span></div><details class="fleet-ships">
           <summary>Корабли флота: ${ships.length} • Экипаж: ${crew}</summary>
           <div class="list" style="margin-top:10px;">${ships.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>
         </details>${f.playerNotes ? `<p class="item-sub">${escapeHtml(f.playerNotes)}</p>` : ''}${isDM() && f.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(f.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openFleetForm('${f.id}')">Редактировать</button><button class="small" onclick="prefillMission('fleet','${f.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('fleets','${f.id}')">Удалить</button></div></div>`;
     }
 
-    function renderFleetMini(f) { return `<div class="item"><div class="item-title">${escapeHtml(f.name)}</div><div class="chips">${statusChip(f.status)}<span class="chip">${escapeHtml(nameOf('leaders', f.captainId))}</span></div></div>`; }
+    function renderFleetMini(f) { return `<div class="item">${artBanner(f,'fleets','mini-art')}<div class="item-title">${escapeHtml(f.name)}</div><div class="chips">${statusChip(f.status)}<span class="chip">${escapeHtml(nameOf('leaders', f.captainId))}</span></div></div>`; }
 
     function renderShipMini(s) {
-      return `<div class="item"><div class="item-head"><div><div class="item-title">${escapeHtml(s.name)}</div><div class="item-sub">${escapeHtml(s.type)} • Флот: ${escapeHtml(nameOf('fleets', s.fleetId))}</div></div>${statusChip(s.state)}</div><div class="chips"><span class="chip">Моряки: ${s.sailors || 0}</span><span class="chip">Головорезы: ${s.thugs || 0}</span><span class="chip">Экипаж: ${shipFollowers(s)}</span>${s.features ? `<span class="chip blue">${escapeHtml(s.features)}</span>` : ''}</div><div class="actions"><button class="small ghost" onclick="openShipForm('${s.id}')">Редактировать</button><button class="small danger" onclick="deleteEntity('ships','${s.id}')">Удалить</button></div></div>`;
+      return `<div class="item">${artBanner(s,'ships')}<div class="item-head"><div><div class="item-title">${escapeHtml(s.name)}</div><div class="item-sub">${escapeHtml(s.type)} • Флот: ${escapeHtml(nameOf('fleets', s.fleetId))}</div></div>${statusChip(s.state)}</div><div class="chips"><span class="chip">Моряки: ${s.sailors || 0}</span><span class="chip">Головорезы: ${s.thugs || 0}</span><span class="chip">Экипаж: ${shipFollowers(s)}</span>${s.features ? `<span class="chip blue">${escapeHtml(s.features)}</span>` : ''}</div><div class="actions"><button class="small ghost" onclick="openShipForm('${s.id}')">Редактировать</button><button class="small danger" onclick="deleteEntity('ships','${s.id}')">Удалить</button></div></div>`;
     }
 
     function openFleetForm(id = '') {
       const f = id ? byId('fleets', id) : { name:'', captainId:'', locationId:'', status:'Свободен', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать флот' : 'Создать флот', `<form onsubmit="saveFleet(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="name" required value="${escapeHtml(f.name)}" /></div><div><label>Капитан</label><select name="captainId">${entityOptions('leaders', f.captainId, l => l.type === 'Капитан флота', 'Резерв / нет')}</select></div><div><label>Локация</label><select name="locationId">${entityOptions('locations', f.locationId, null, 'Не указана')}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(fleetStatuses, f.status)}</select></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(f.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(f.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать флот' : 'Создать флот', `<form onsubmit="saveFleet(event, '${id}')"><div class="form-grid">${sharedArtNotice(f,'fleets')}<div class="full"><label>Название</label><input name="name" required value="${escapeHtml(f.name)}" /></div><div><label>Капитан</label><select name="captainId">${entityOptions('leaders', f.captainId, l => l.type === 'Капитан флота', 'Резерв / нет')}</select></div><div><label>Локация</label><select name="locationId">${entityOptions('locations', f.locationId, null, 'Не указана')}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(fleetStatuses, f.status)}</select></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(f.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(f.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
     }
 
     function saveFleet(event, id) {
@@ -2986,7 +3069,7 @@
 
     function openShipForm(id = '') {
       const s = id ? byId('ships', id) : { name:'', type:'Лодка', fleetId:'', state:'Целый', sailors:0, thugs:0, cargo:'', features:'', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать корабль' : 'Добавить корабль', `<form onsubmit="saveShip(event, '${id}')"><div class="form-grid"><div class="full"><label>Название</label><input name="name" required value="${escapeHtml(s.name)}" /></div><div><label>Тип</label><select name="type">${optionList(shipTypes, s.type)}</select></div><div><label>Флот</label><select name="fleetId">${entityOptions('fleets', s.fleetId, null, 'Без флота')}</select></div><div><label>Состояние</label><select name="state" ${isDM() ? '' : 'disabled'}>${optionList(shipStates, s.state)}</select></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${s.sailors || 0}" /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${s.thugs || 0}" /></div><div><label>Особенности</label><input name="features" value="${escapeHtml(s.features)}" /></div><div class="full"><label>Груз</label><textarea name="cargo" ${isDM() ? '' : 'readonly'}>${escapeHtml(s.cargo)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(s.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(s.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      openModal(id ? 'Редактировать корабль' : 'Добавить корабль', `<form onsubmit="saveShip(event, '${id}')"><div class="form-grid">${sharedArtNotice(s,'ships')}<div class="full"><label>Название</label><input name="name" required value="${escapeHtml(s.name)}" /></div><div><label>Тип</label><select name="type" onchange="previewSharedArt(this.form,'ships')">${optionList(shipTypes, s.type)}</select></div><div><label>Флот</label><select name="fleetId">${entityOptions('fleets', s.fleetId, null, 'Без флота')}</select></div><div><label>Состояние</label><select name="state" ${isDM() ? '' : 'disabled'}>${optionList(shipStates, s.state)}</select></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${s.sailors || 0}" /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${s.thugs || 0}" /></div><div><label>Особенности</label><input name="features" value="${escapeHtml(s.features)}" /></div><div class="full"><label>Груз</label><textarea name="cargo" ${isDM() ? '' : 'readonly'}>${escapeHtml(s.cargo)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(s.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(s.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
     }
 
     function saveShip(event, id) {
