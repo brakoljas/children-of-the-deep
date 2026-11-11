@@ -886,6 +886,16 @@
     .sea-map.has-user-image .map-art {display:none;}
     .map-user-image {position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none;display:none;}
     .sea-map.has-user-image .map-user-image {display:block;}
+    /* Do not reveal the placeholder islands or pins before the real map has decoded. */
+    .sea-map.map-image-pending .map-user-image {visibility:hidden;}
+    .sea-map.map-image-pending .map-pin,
+    .sea-map.map-image-error .map-pin {visibility:hidden;}
+    .map-image-feedback {display:none;position:absolute;inset:0;z-index:7;align-items:center;
+      justify-content:center;padding:24px;text-align:center;pointer-events:none;
+      color:#a9c9c7;font:13px/1.5 var(--ui);background:rgba(6,26,36,.24);}
+    .sea-map.map-image-pending .map-image-feedback,
+    .sea-map.map-image-error .map-image-feedback {display:flex;}
+    .sea-map.map-image-error .map-image-feedback {color:#f1c9b5;}
     .map-control-help {font:11px var(--ui);color:#8db6b5;margin:7px 0 0;line-height:1.4;}
     .sea-map.is-placing {cursor:crosshair;box-shadow:inset 0 0 0 3px rgba(106,223,176,.42);}
     .sea-map::after {content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
@@ -911,6 +921,17 @@
     .map-pin.threat::before {background:linear-gradient(145deg,#faaba7,#bc5a67);border-color:#ffc3b5;}
     .map-pin.dragging {z-index:20;cursor:grabbing;}
     .map-inspector {display:flex;flex-direction:column;gap:15px;min-width:0;}
+    /* The fleet's ships fold out in the inspector, as on the Fleets tab. */
+    .inspector-fleet-ships {margin-top:0;min-width:0;}
+    .inspector-fleet-ships summary {font-size:17px;}
+    .inspector-fleet-ships .item {padding:10px;min-width:0;}
+    .inspector-fleet-ships .item-title {font-size:19px;overflow-wrap:anywhere;}
+    .inspector-fleet-ships .item-sub {font-size:12px;}
+    .inspector-fleet-ships .item-head {flex-wrap:wrap;}
+    .inspector-fleet-ships .entity-art {height:58px;min-height:58px;}
+    .inspector-fleet-ships .actions {gap:5px;}
+    .inspector-fleet-ships .actions button {font-size:12px;padding:6px 8px;}
+
     .intel-kicker {font:700 10px var(--ui);letter-spacing:.14em;color:#80c9b0;text-transform:uppercase;}
     .intel-name {font:700 31px var(--display);line-height:1.03;margin:4px 0 2px;}
     .intel-type {font:12px var(--ui);color:#9db9b6;}
@@ -2128,6 +2149,22 @@
     }
     // Local file preview never goes into Supabase JSON; shared maps use an asset URL.
     let mapPreviewUrl = '';
+    const MAP_RATIO_CACHE_KEY = 'deti_glubiny_map_ratio_v1';
+    let mapRatioCache = (() => {
+      try {
+        const value = JSON.parse(localStorage.getItem(MAP_RATIO_CACHE_KEY) || '{}');
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+      } catch (_) { return {}; }
+    })();
+    function knownMapRatio(source) {
+      const ratio = Number(mapRatioCache[source]);
+      return Number.isFinite(ratio) && ratio >= .2 && ratio <= 10 ? ratio : 16 / 9;
+    }
+    function rememberMapRatio(source, width, height) {
+      if (!source || !(width > 0 && height > 0)) return;
+      mapRatioCache[source] = width / height;
+      try { localStorage.setItem(MAP_RATIO_CACHE_KEY, JSON.stringify(mapRatioCache)); } catch (_) {}
+    }
 
     function uploadMapBackground(event) {
       if (!isDM()) return;
@@ -2169,15 +2206,30 @@
     }
 
     function mapImageLoaded(image) {
-      const map=image.closest('.sea-map');
-      if(!map || !image.naturalWidth || !image.naturalHeight) return;
-      map.style.aspectRatio=`${image.naturalWidth} / ${image.naturalHeight}`;
+      const map = image.closest('.sea-map');
+      if (!map || !image.naturalWidth || !image.naturalHeight) return;
+      const src = getMapBackgroundSrc();
+      map.style.aspectRatio = `${image.naturalWidth} / ${image.naturalHeight}`;
+      rememberMapRatio(src, image.naturalWidth, image.naturalHeight);
       map.classList.add('has-user-image');
+      map.classList.remove('map-image-pending', 'map-image-error');
     }
 
     function mapImageFailed(image) {
-      const map=image.closest('.sea-map');
-      if(map) {map.classList.remove('has-user-image'); map.style.removeProperty('aspect-ratio');}
+      const map = image.closest('.sea-map');
+      if (!map) return;
+      map.classList.remove('map-image-pending');
+      const automaticFallback = !mapPreviewUrl && app.ui?.mapImageUrl === undefined;
+      if (automaticFallback) {
+        // The optional map.jpg is absent: show the built-in illustration only in this case.
+        map.classList.remove('has-user-image', 'map-image-error');
+        map.style.removeProperty('aspect-ratio');
+      } else {
+        // A user-selected image failed: never replace it with an unrelated island map.
+        map.classList.add('has-user-image', 'map-image-error');
+        const message = map.querySelector('.map-image-feedback');
+        if (message) message.textContent = 'Не удалось загрузить выбранную карту. Проверь путь к изображению в режиме ДМа.';
+      }
     }
 
     function getMapBackgroundSrc() {
@@ -2258,6 +2310,10 @@
           </button>`;
       }).join('');
       const mapImageSrc = getMapBackgroundSrc();
+      const imageExpected = Boolean(mapImageSrc);
+      // The SVG is a fallback only for installations without an explicitly selected map.
+      const allowDefaultIllustration = !imageExpected || (!mapPreviewUrl && app.ui?.mapImageUrl === undefined);
+      const initialAspectRatio = imageExpected ? `style="aspect-ratio:${knownMapRatio(mapImageSrc)}"` : '';
       return `<section class="panel map-panel">
         <div class="map-head"><div><h2>Карта владений</h2><p>${app.locations.length} поселений и ячеек · ${app.fleets.length} флотов</p>
           ${isDM() ? `<div class="map-control-help">ДМ может перетаскивать поселения и флоты. Картинку можно заменить собственной.</div>` : ''}</div>
@@ -2269,14 +2325,22 @@
           <button class="small ghost" onclick="clearMapBackground()">Убрать фон</button>` : ''}
           <button class="small ghost" onclick="setTab('locations')">Все поселения</button></div>
         </div>
-        <div class="sea-map ${mapPlacementMode ? 'is-placing' : ''}" id="seaMap" onclick="mapBackgroundClick(event)" onwheel="mapWheel(event)" onpointerdown="mapPanDown(event)" onpointermove="mapPanMove(event)" onpointerup="mapPanUp(event)" onpointercancel="mapPanUp(event)">
+        <div class="sea-map ${mapPlacementMode ? 'is-placing' : ''} ${imageExpected ? 'has-user-image map-image-pending' : ''}" id="seaMap" ${initialAspectRatio} onclick="mapBackgroundClick(event)" onwheel="mapWheel(event)" onpointerdown="mapPanDown(event)" onpointermove="mapPanMove(event)" onpointerup="mapPanUp(event)" onpointercancel="mapPanUp(event)">
           <div class="map-stage" id="mapStage" style="transform:translate(${mapOffsetX}px, ${mapOffsetY}px) scale(${mapZoom})">
-            ${mapLandSvg()}${mapImageSrc ? `<img class="map-user-image" alt="" src="${escapeHtml(mapImageSrc)}" onload="mapImageLoaded(this)" onerror="mapImageFailed(this)" />` : ''}${pins}${fleetPins}
+            ${allowDefaultIllustration ? mapLandSvg() : ''}${imageExpected ? `<img class="map-user-image" alt="" src="${escapeHtml(mapImageSrc)}" loading="eager" decoding="async" onload="mapImageLoaded(this)" onerror="mapImageFailed(this)" />` : ''}${pins}${fleetPins}
           </div>
+          ${imageExpected ? '<div class="map-image-feedback" aria-live="polite">Загрузка карты…</div>' : ''}
           <span class="map-caption">${mapPlacementMode ? 'НАЖМИ НА КАРТУ, ЧТОБЫ СОЗДАТЬ ПОСЕЛЕНИЕ' : isDM() ? 'ПЕРЕТАСКИВАЙ МАРКЕРЫ · КОЛЁСИКО ДЛЯ МАСШТАБА' : 'КОЛЁСИКО — МАСШТАБ · ПЕРЕТАСКИВАНИЕ — ПЕРЕМЕЩЕНИЕ'}</span>
         </div>
         <div class="map-legend"><span><i class="legend-dot"></i> Поселения</span><span><i class="legend-dot fleet"></i> Флоты</span><span><i class="legend-dot warn"></i> Дурная слава 6+</span><span>Координаты сохраняются, масштаб — только для просмотра</span></div>
       </section>`;
+    }
+
+    // Expansion state is presentation-only and is never written to the cult JSON.
+    let mapInspectorExpandedFleetId = '';
+    function rememberInspectorFleetShips(fleetId, isOpen) {
+      if (isOpen) mapInspectorExpandedFleetId = fleetId;
+      else if (mapInspectorExpandedFleetId === fleetId) mapInspectorExpandedFleetId = '';
     }
 
     function renderMapInspector() {
@@ -2293,6 +2357,10 @@
           <div class="intel-metric"><span>Капитан</span><strong>${escapeHtml(fleetCaptain?.name||'Не назначен')}</strong></div>
           <div class="intel-metric"><span>Текущая миссия</span><strong>${escapeHtml(nameOf('missions',selectedFleet.currentMissionId,'—'))}</strong></div></div>
           <div class="map-help">${escapeHtml(selectedFleet.playerNotes||'Флот на службе Детей глубины.')}</div>
+          <details class="fleet-ships inspector-fleet-ships" ${mapInspectorExpandedFleetId === selectedFleet.id ? 'open' : ''} ontoggle="rememberInspectorFleetShips('${selectedFleet.id}', this.open)">
+            <summary>Корабли флота: ${fleetShips.length} · Экипаж: ${crew}</summary>
+            <div class="list" style="margin-top:10px;">${fleetShips.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>
+          </details>
           <div class="actions" style="margin-top:auto"><button class="small" onclick="prefillMission('fleet','${selectedFleet.id}')">Отдать приказ</button><button class="small ghost" onclick="openFleetForm('${selectedFleet.id}')">Открыть флот</button></div>
         </section>`;
       }
@@ -2331,18 +2399,30 @@
       openLocationForm();
     }
 
+    function refreshMapSelection() {
+      const locationId = byId('locations', selectedMapLocationId)?.id || app.locations[0]?.id || '';
+      document.querySelectorAll('.sea-map .location-pin').forEach(pin => {
+        pin.classList.toggle('selected', !selectedMapFleetId && pin.dataset.mapId === locationId);
+      });
+      document.querySelectorAll('.sea-map .fleet-pin').forEach(pin => {
+        pin.classList.toggle('selected', pin.dataset.fleetId === selectedMapFleetId);
+      });
+      const inspector = document.querySelector('.map-layout .map-inspector');
+      if (inspector) inspector.outerHTML = renderMapInspector();
+    }
+
     function selectMapLocation(event,id) {
       if (mapDrag?.moved) {mapDrag=null;event.preventDefault();return;}
       if (mapPlacementMode) return;
       selectedMapFleetId='';selectedMapLocationId=id;
-      render();
+      refreshMapSelection();
     }
 
     function selectMapFleet(event,id) {
       if (mapDrag?.moved) {mapDrag=null;event.preventDefault();return;}
       if (mapPlacementMode) return;
       selectedMapFleetId=id;
-      render();
+      refreshMapSelection();
     }
 
     function mapPinDown(event,id,collection='locations') {
@@ -2378,7 +2458,9 @@
         if(drag.collection==='fleets')selectedMapFleetId=drag.id;
         else {selectedMapLocationId=drag.id;selectedMapFleetId='';}
         toast(drag.collection==='fleets'?'Положение флота сохранено.':'Положение поселения сохранено.');
-        setTimeout(()=>{if(mapDrag===drag){mapDrag=null;render();}},0);
+        // Keep the original image element mounted; only update inspector/selection.
+        refreshMapSelection();
+        setTimeout(()=>{if(mapDrag===drag)mapDrag=null;},0);
       }else{mapDrag=null;}
     }
 
