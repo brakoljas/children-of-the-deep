@@ -1163,6 +1163,7 @@
   <div id="toast" class="toast"></div>
   <script>
     const STORAGE_KEY = 'deti_glubiny_state_v2';
+    const MISSION_SAFETY_BACKUPS_KEY = 'deti_glubiny_mission_backups_v1';
     const DM_PASSWORD = 'hydrcad';
     const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
@@ -1178,6 +1179,10 @@
     let saveQueued = false;
     let syncStatus = 'Загрузка...';
     let lastCloudSaveAt = '';
+    // Timestamp of the cloud revision that this tab actually loaded/saved.
+    // A stale tab must NEVER replace a newer version of the whole cult state.
+    let lastKnownCloudRevision = null;
+    let syncConflict = false;
 
     const tabs = [
       ['overview', 'Командный центр'],
@@ -1718,13 +1723,44 @@
       if(isDM() && typeof form._artImage==='string')entity.artImage=usableArtSource(form._artImage);
     }
 
+    // Rolling local safety copies contain the mission journal, not bulky illustration files.
+    // Copies are never uploaded to Supabase; restoration only happens after an explicit DM action.
+    function missionBackupRecords() {
+      try {
+        const value=JSON.parse(localStorage.getItem(MISSION_SAFETY_BACKUPS_KEY)||'[]');
+        return Array.isArray(value) ? value : [];
+      } catch(error) { return []; }
+    }
+    function archiveMissions(state,reason) {
+      if(!state || !Array.isArray(state.missions) || !state.missions.length)return;
+      try {
+        const missions=JSON.parse(JSON.stringify(state.missions));
+        const chronicle=JSON.parse(JSON.stringify((state.chronicle||[]).filter(c=>c.type==='Миссия')));
+        const signature=JSON.stringify(missions.map(m=>[m.id,m.status,m.endTick,m.remaining,m.reports?.length]));
+        let backups=missionBackupRecords();
+        if(backups[0]?.signature===signature)return;
+        backups.unshift({savedAt:new Date().toISOString(),reason,signature,missions,chronicle});
+        backups=backups.slice(0,8);
+        while(backups.length>1 && JSON.stringify(backups).length>2000000)backups.pop();
+        localStorage.setItem(MISSION_SAFETY_BACKUPS_KEY,JSON.stringify(backups));
+      } catch(error) { console.warn('Не удалось создать резервную копию приказов:',error); }
+    }
+    function syncConflictNotice(reason) {
+      hasUnsavedChanges=true;
+      cloudSaveEnabled=false;
+      syncConflict=true;
+      syncStatus='Конфликт синхронизации';
+      updateSyncCard();
+      toast(reason||'В Supabase появилась другая версия. Изменения сохранены локально, облако не перезаписано.');
+    }
     function saveState(show = false) {
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
+      archiveMissions(app,'Изменение приказов и состояния');
       hasUnsavedChanges = true;
       editRevision += 1;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-      if (cloudSaveEnabled) saveStateToSupabase(false);
-      if (show) toast(cloudSaveEnabled ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
+      if (cloudSaveEnabled && !syncConflict) saveStateToSupabase(false);
+      if (show) toast(cloudSaveEnabled && !syncConflict ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
     }
 
     function scheduleCloudSave() {
@@ -1740,65 +1776,107 @@
       };
     }
 
+    // Read only the revision, so autosaves do not transfer all cloud data every time.
+    async function readCloudRevision() {
+      const response=await withTimeout(fetch(`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&select=updated_at`,{
+        method:'GET',headers:supabaseHeaders()
+      }),SUPABASE_TIMEOUT_MS,'Supabase не ответил при проверке версии.');
+      if(!response.ok)throw new Error(`Supabase version ${response.status}: ${await response.text()}`);
+      const rows=await response.json();
+      return Array.isArray(rows)&&rows[0]?.updated_at ? String(rows[0].updated_at) : null;
+    }
+    function sameCloudRevision(a,b) {
+      // Canonical response may use UTC offsets or extra fractional precision.
+      if(a===b)return true;
+      if(!a || !b)return false;
+      return Date.parse(a)===Date.parse(b);
+    }
     async function saveStateToSupabase(force = false) {
-      if (!force && !hasUnsavedChanges) return true;
-
+      if (!force && (!hasUnsavedChanges || syncConflict)) return !syncConflict;
       if (saveInProgress) {
         saveQueued = true;
         syncStatus = 'Ожидает сохранения';
         updateSyncCard();
         return false;
       }
-
-      saveInProgress = true;
-      const writeRevision = editRevision;
-      let lastError = null;
-
-      if (force) app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
-      else app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-
+      saveInProgress=true;
+      const writeRevision=editRevision;
+      let lastError=null;
       try {
-        for (let attempt = 1; attempt <= SUPABASE_SAVE_RETRIES; attempt += 1) {
+        archiveMissions(app,'Перед облачным сохранением');
+        // Fail closed: a failed version check must never trigger a blind overwrite.
+        const liveRevision=await readCloudRevision();
+        if (!sameCloudRevision(liveRevision,lastKnownCloudRevision)) {
+          syncConflictNotice('Другая вкладка изменила Supabase. Твои приказы сохранены локально; облако не перезаписано.');
+          return false;
+        }
+        if (!liveRevision && !force) {
+          syncConflictNotice('Состояние в Supabase отсутствует. Для создания новой записи требуется явное сохранение.');
+          return false;
+        }
+        // Always send an immutable snapshot. Later edits will be sent in a queued save.
+        const savedAt=new Date().toISOString();
+        const snapshot=JSON.parse(JSON.stringify(app));
+        snapshot.ui={...(snapshot.ui||{}),mode,lastModifiedAt:savedAt};
+        const payload=JSON.stringify({room_code:ROOM_CODE,data:snapshot,updated_at:savedAt});
+        for(let attempt=1;attempt<=SUPABASE_SAVE_RETRIES;attempt++){
           try {
-            syncStatus = attempt === 1 ? 'Сохранение...' : `Сохранение, попытка ${attempt}`;
+            syncStatus=attempt===1?'Сохранение...':`Сохранение, попытка ${attempt}`;
             updateSyncCard();
-
-            const response = await withTimeout(
-              fetch(`${SUPABASE_REST_URL}?on_conflict=room_code`, {
-                method: 'POST',
-                headers: supabaseHeaders({ Prefer: 'resolution=merge-duplicates' }),
-                body: JSON.stringify({ room_code: ROOM_CODE, data: app, updated_at: new Date().toISOString() })
-              }),
-              SUPABASE_TIMEOUT_MS,
-              'Supabase не ответил за 30 секунд при сохранении.'
-            );
-
-            if (!response.ok) throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
-
-            syncStatus = 'Supabase';
-            lastCloudSaveAt = new Date().toLocaleTimeString();
-            hasUnsavedChanges = editRevision !== writeRevision;
+            let response;
+            if(liveRevision){
+              // Atomic compare-and-update: a second tab cannot change the row between
+              // our version check and the actual write without causing a conflict.
+              const url=`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&updated_at=eq.${encodeURIComponent(liveRevision)}&select=updated_at`;
+              response=await withTimeout(fetch(url,{
+                method:'PATCH',headers:supabaseHeaders({Prefer:'return=representation'}),
+                body:payload
+              }),SUPABASE_TIMEOUT_MS,'Supabase не ответил при сохранении.');
+            }else{
+              response=await withTimeout(fetch(`${SUPABASE_REST_URL}?on_conflict=room_code&select=updated_at`,{
+                method:'POST',headers:supabaseHeaders({Prefer:'resolution=ignore-duplicates,return=representation'}),
+                body:payload
+              }),SUPABASE_TIMEOUT_MS,'Supabase не ответил при создании записи.');
+            }
+            if(!response.ok)throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
+            const rows=await response.json();
+            if(!Array.isArray(rows)||rows.length!==1){
+              syncConflictNotice('В базе уже другая версия. Сохранение остановлено, приказы остались в локальной копии.');
+              return false;
+            }
+            lastKnownCloudRevision=rows[0].updated_at||savedAt;
+            syncConflict=false;
+            syncStatus='Supabase';
+            lastCloudSaveAt=new Date().toLocaleTimeString();
+            hasUnsavedChanges=editRevision!==writeRevision;
             updateSyncCard();
             return true;
-          } catch (error) {
-            lastError = error;
-            console.error(`Supabase save error, attempt ${attempt}:`, error);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }catch(error){
+            lastError=error;
+            console.error(`Supabase save error, attempt ${attempt}:`,error);
+            if(attempt<SUPABASE_SAVE_RETRIES)await new Promise(resolve=>setTimeout(resolve,1000*attempt));
           }
         }
-
-        syncStatus = 'Ошибка сохранения';
-        lastCloudSaveAt = '';
+        syncStatus='Ошибка сохранения';
+        lastCloudSaveAt='';
+        hasUnsavedChanges=true;
         updateSyncCard();
-        toast(`Не удалось сохранить в Supabase: ${lastError?.message || 'неизвестная ошибка'}`);
+        toast(`Не удалось сохранить в Supabase: ${lastError?.message||'неизвестная ошибка'}`);
         return false;
-      } finally {
-        saveInProgress = false;
-        if (saveQueued) {
-          saveQueued = false;
-          if (syncStatus !== 'Ошибка сохранения') setTimeout(() => saveStateToSupabase(false), 0);
+      }catch(error){
+        console.error('Supabase revision check failed:',error);
+        syncStatus='Ошибка проверки версии';
+        hasUnsavedChanges=true;
+        updateSyncCard();
+        toast('Облако не перезаписано: не удалось проверить актуальность данных Supabase.');
+        return false;
+      }finally{
+        saveInProgress=false;
+        if(saveQueued){
+          saveQueued=false;
+          if(!syncConflict && syncStatus!=='Ошибка сохранения' && syncStatus!=='Ошибка проверки версии' && cloudSaveEnabled){
+            setTimeout(()=>saveStateToSupabase(false),0);
+          }
         }
       }
     }
@@ -1810,7 +1888,7 @@
       ]);
     }
 
-    async function loadStateFromSupabase() {
+    async function loadStateFromSupabase(preferCloud = false) {
       try {
         const response = await withTimeout(
           fetch(`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&select=data,updated_at`, {
@@ -1827,17 +1905,23 @@
         if (row?.data?.cult) {
           const local = loadState();
           const cloudState = row.data;
+          lastKnownCloudRevision=row.updated_at||null;
+          syncConflict=false;
+          archiveMissions(local,'Локальная копия перед синхронизацией');
+          archiveMissions(cloudState,'Облачная копия при загрузке');
           const localTime = local?.ui?.lastModifiedAt ? new Date(local.ui.lastModifiedAt).getTime() : 0;
           const cloudTime = cloudState?.ui?.lastModifiedAt ? new Date(cloudState.ui.lastModifiedAt).getTime() : (row.updated_at ? new Date(row.updated_at).getTime() : 0);
 
-          if (local?.cult && localTime > cloudTime) {
-            app = cloudState;
-            mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? 'dm' : 'player';
+          if (local?.cult && localTime > cloudTime && !preferCloud) {
+            // Previously this branch incorrectly selected cloudState and could hide
+            // newer local missions. Keep local state without automatic cloud writes.
+            app=local;
+            mode=sessionStorage.getItem('deti_glubiny_dm_unlocked')==='true'?(app.ui?.mode||'player'):'player';
             normalizeState();
-            syncStatus = 'Supabase, локальная копия новее';
+            syncStatus='Локальная копия новее';
             render();
-            toast('Локальная копия новее, но база не перезаписана. Проверь данные и нажми «Сохранить» только если нужно.');
-            return true;
+            toast('Локальные данные новее облачных. Облако не перезаписано. Экспортируй JSON и сверь приказы.');
+            return false;
           }
 
           app = cloudState;
@@ -1892,20 +1976,25 @@
     }
 
     async function forceCloudSave() {
-      app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
-      hasUnsavedChanges = true;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-      const ok = await saveStateToSupabase(true);
-      if (ok) {
-        cloudSaveEnabled = true;
-        toast('Принудительно сохранено в Supabase.');
-      }
+      if(!confirm(`Записать текущую версию культа в Supabase?\n\nПриказов в этой вкладке: ${(app.missions||[]).length}.\nПроверь, что старые приказы на месте. Перед заменой облачной версии рекомендуется экспорт JSON.`))return;
+      archiveMissions(app,'Перед ручной отправкой в Supabase');
+      app.ui={...(app.ui||{}),mode,lastModifiedAt:new Date().toISOString()};
+      hasUnsavedChanges=true;
+      editRevision++;
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(app));
+      // An already-detected conflict cannot be bypassed without downloading the
+      // latest cloud state first. This prevents accidental history loss.
+      if(syncConflict){toast('Сначала разреши конфликт версий. Облако не перезаписано.');return;}
+      const ok=await saveStateToSupabase(true);
+      if(ok){cloudSaveEnabled=true;toast('Сохранено в Supabase.');}
     }
 
     async function forceCloudReload() {
-      const ok = await loadStateFromSupabase();
-      cloudSaveEnabled = ok;
-      if (ok) toast('Принудительно загружено из Supabase.');
+      if(!confirm(`Загрузить облачную версию и заменить данные в этой вкладке?\n\nСейчас здесь ${(app.missions||[]).length} приказов. Перед заменой будет сохранена локальная копия приказов; для полной резервной копии сначала используй «Экспорт».`))return;
+      archiveMissions(app,'Перед ручной загрузкой из Supabase');
+      const ok=await loadStateFromSupabase(true);
+      cloudSaveEnabled=ok;
+      if(ok)toast('Загружено из Supabase. Архив прежних приказов сохранён в браузере.');
     }
 
     function uploadSigil(event) {
@@ -1941,7 +2030,9 @@
       const reader = new FileReader();
       reader.onload = () => {
         try {
+          archiveMissions(app,'Перед импортом JSON');
           app = JSON.parse(reader.result);
+          archiveMissions(app,'Импортированная копия');
           mode = app.ui?.mode || 'player';
           normalizeState();
           saveState(false);
@@ -2015,6 +2106,7 @@
     function confirmReset() {
       if (!isDM()) return;
       if (!confirm('Сбросить данные и загрузить стартовый пример?')) return;
+      archiveMissions(app,'Перед сбросом на демо');
       app = demoState();
       mode = 'player';
       saveState(false);
@@ -2623,14 +2715,16 @@
 
     function renderMissions() {
       const grouped = ['Черновик', 'Ожидает ДМ', 'Активна', 'Задержана', 'Осложнена', 'Готова к завершению', 'Завершена', 'Провалена', 'Отменена'];
+      const unknown=(app.missions||[]).filter(m=>!grouped.includes(m.status));
+      const listed=grouped.map(status=>{
+        const ms=status==='Завершена'?completedMissionsNewestFirst():app.missions.filter(m=>m.status===status);
+        if(!ms.length)return '';
+        return `<h3>${status} · ${ms.length}</h3><div class="list" style="margin-bottom:14px;">${ms.map(renderMissionCard).join('')}</div>`;
+      }).join('')+(unknown.length?`<h3>Другие статусы · ${unknown.length}</h3><div class="list">${unknown.map(renderMissionCard).join('')}</div>`:'');
       return `
         <div class="grid">
           <section class="panel span-5"><div class="panel-head"><div><h2>Новая миссия</h2><p>Игрок формулирует приказ. ДМ подтверждает длительность и последствия.</p></div></div>${missionForm()}</section>
-          <section class="panel span-7"><div class="panel-head"><div><h2>Список миссий</h2><p>Долгие миссии занимают исполнителей на несколько тиков.</p></div></div>${grouped.map(status => {
-            const ms = status === 'Завершена' ? completedMissionsNewestFirst() : app.missions.filter(m => m.status === status);
-            if (!ms.length) return '';
-            return `<h3>${status}</h3><div class="list" style="margin-bottom:14px;">${ms.map(renderMissionCard).join('')}</div>`;
-          }).join('') || empty('Миссий пока нет. Создай первый приказ для культа.')}</section>
+          <section class="panel span-7"><div class="panel-head"><div><h2>Список миссий · ${app.missions.length}</h2><p>Все сохранённые приказы. Завершённые — от новых к старым, активные — в прежнем порядке.</p></div></div>${listed || empty('Миссий пока нет. Создай первый приказ для культа.')}</section>
         </div>
       `;
     }
@@ -3828,8 +3922,42 @@
       saveState(false); closeModal(); render();
     }
 
+    function openMissionBackupArchive() {
+      if(!isDM()){toast('Архив приказов доступен ДМу.');return;}
+      const backups=missionBackupRecords();
+      const currentIds=new Set((app.missions||[]).map(m=>m.id));
+      const list=backups.map((copy,index)=>{
+        const missing=(copy.missions||[]).filter(m=>!currentIds.has(m.id)).length;
+        const date=new Date(copy.savedAt).toLocaleString();
+        return `<div class="list-item" style="padding:12px;margin-bottom:8px;border:1px solid rgba(122,193,180,.22);border-radius:9px"><strong>${escapeHtml(date)} · ${copy.missions.length} приказов</strong><div class="item-sub">${escapeHtml(copy.reason||'Копия')} · отсутствуют сейчас: ${missing}</div><div class="actions"><button class="small ghost" type="button" onclick="downloadMissionBackup(${index})">Скачать JSON</button>${missing?`<button class="small" type="button" onclick="restoreMissingMissions(${index})">Вернуть ${missing} отсутствующих</button>`:''}</div></div>`;
+      }).join('');
+      openModal('Резервные копии приказов', `<p class="item-sub">Локальные копии этого браузера. Восстановление добавляет только отсутствующие приказы по ID и не меняет существующие. Если старые приказы уже удалены из браузера и из Supabase, они не появятся в этом архиве автоматически.</p><p><strong>Сейчас в культе: ${(app.missions||[]).length} приказов</strong></p>${list||'<div class="empty">Локальных резервных копий пока нет. Проверь старые экспорты JSON.</div>'}`);
+    }
+    function downloadMissionBackup(index) {
+      const copy=missionBackupRecords()[index];
+      if(!copy)return;
+      const blob=new Blob([JSON.stringify(copy,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download=`deti-glubiny-orders-backup-${index+1}.json`;a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+    }
+    function restoreMissingMissions(index) {
+      if(!isDM())return;
+      const copy=missionBackupRecords()[index];if(!copy)return;
+      const ids=new Set((app.missions||[]).map(m=>m.id));
+      const missing=(copy.missions||[]).filter(m=>!ids.has(m.id));
+      if(!missing.length){toast('Все приказы из этой копии уже на месте.');return;}
+      if(!confirm(`Вернуть ${missing.length} отсутствующих приказов из этой копии?\n\nСуществующие миссии не будут изменены, но некоторые ранее намеренно удалённые приказы тоже могут вернуться.`))return;
+      archiveMissions(app,'Перед восстановлением приказов');
+      app.missions.push(...JSON.parse(JSON.stringify(missing)));
+      const logIds=new Set((app.chronicle||[]).map(c=>c.id));
+      for(const entry of (copy.chronicle||[]))if(!logIds.has(entry.id))app.chronicle.push(JSON.parse(JSON.stringify(entry)));
+      normalizeState();saveState(false);closeModal();render();
+      toast(`Восстановлено приказов: ${missing.length}.`);
+    }
+
     function renderDM() {
-      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время, уменьшает срок миссий и начисляет эффекты населения.</p></div></div><div class="notice">За каждые 5 Богачей в поселении: +1 Богатство. За каждые 100 Послушников: +1 Благосклонность. За каждые 150 Головорезов: +1 Дурная слава (без дополнительного ограничения в тик). Активные миссии теряют 1 тик длительности. После перехода появится рапорт, который сохраняется в Хронике.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button></div></section>${renderSharedArtLibrary()}</div>`;
+      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время, уменьшает срок миссий и начисляет эффекты населения.</p></div></div><div class="notice">За каждые 5 Богачей в поселении: +1 Богатство. За каждые 100 Послушников: +1 Благосклонность. За каждые 150 Головорезов: +1 Дурная слава (без дополнительного ограничения в тик). Активные миссии теряют 1 тик длительности. После перехода появится рапорт, который сохраняется в Хронике.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button><button onclick="openMissionBackupArchive()">Архив приказов</button></div></section>${renderSharedArtLibrary()}</div>`;
     }
 
     function dmResourceForm() {
@@ -3987,9 +4115,26 @@
 
     window.addEventListener('beforeunload', () => {
       try {
-        app.ui = { ...(app.ui || {}), mode, lastModifiedAt: app.ui?.lastModifiedAt || new Date().toISOString() };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
+        archiveMissions(app,'Закрытие вкладки');
+        // Do not let an old tab replace a newer local cache on unload.
+        const stored=loadState();
+        const storedTime=Date.parse(stored?.ui?.lastModifiedAt||'')||0;
+        const ownTime=Date.parse(app.ui?.lastModifiedAt||'')||0;
+        if(storedTime>ownTime)return;
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(app));
       } catch (error) {}
+    });
+    window.addEventListener('storage', event=>{
+      if(event.key!==STORAGE_KEY||!event.newValue)return;
+      try {
+        const other=JSON.parse(event.newValue);
+        const otherTime=Date.parse(other?.ui?.lastModifiedAt||'')||0;
+        const ownTime=Date.parse(app.ui?.lastModifiedAt||'')||0;
+        if(otherTime>ownTime){
+          archiveMissions(app,'Параллельная вкладка изменила данные');
+          syncConflictNotice('Данные изменились в другой вкладке. Эта вкладка остановила запись в облако.');
+        }
+      }catch(error){console.warn(error);}
     });
 
     function renderLoading() {
