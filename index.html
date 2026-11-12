@@ -1194,6 +1194,27 @@
     const locationTypes = ['Крупный остров', 'Малый остров', 'Городская ячейка', 'Деревенская ячейка', 'Тайная бухта', 'Другое'];
     const shipTypes = ['Лодка', 'Когг', 'Ладья', 'Парусный корабль', 'Военный корабль', 'Галера', 'Другое'];
     const shipStates = ['Целый', 'Повреждён', 'Захвачен', 'Потерян', 'Затонул'];
+    // Нормативы экипажа по типу корабля. Для «Другого» лимиты задаются ДМом вручную.
+    const SHIP_TYPE_LIMITS = {
+      'Военный корабль': {sailors:40,thugs:70},
+      'Галера': {sailors:80,thugs:40},
+      'Когг': {sailors:20,thugs:35},
+      'Лодка': {sailors:3,thugs:4},
+      'Ладья': {sailors:40,thugs:40},
+      'Парусный корабль': {sailors:30,thugs:20}
+    };
+    const SHIP_CAPACITY_RULES_VERSION = 1;
+    const SHIP_COG_DEFAULTS_VERSION = 1;
+    function typeShipLimits(type) { return SHIP_TYPE_LIMITS[type] || null; }
+    function applyShipTypeDefaults(form) {
+      if (!form) return;
+      const limits=typeShipLimits(form.elements.namedItem('type')?.value);
+      if (!limits) return; // Для «Другого» оставляем значения для ручной настройки.
+      const maxS=form.elements.namedItem('maxSailors');
+      const maxT=form.elements.namedItem('maxThugs');
+      if (maxS) maxS.value=limits.sailors;
+      if (maxT) maxT.value=limits.thugs;
+    }
     const fleetStatuses = ['Свободен', 'В порту', 'В море', 'На миссии', 'Возвращается', 'Скрывается', 'Повреждён', 'Потерян', 'Недоступен'];
     const leaderStatuses = ['Свободен', 'На миссии', 'В плену', 'Пропал', 'Мёртв'];
     const locationStatuses = ['Активна', 'Скрыта', 'Под угрозой', 'Раскрыта', 'Уничтожена', 'Недоступна'];
@@ -1203,12 +1224,21 @@
     const chronicleTypes = ['Миссия', 'Событие', 'Видение', 'Угроза', 'Потеря', 'Победа'];
 
     const missionActions = {
-      'Капитан флота': ['Торговый рейс', 'Контрабанда', 'Пиратство', 'Перевозка', 'Патруль', 'Экспедиция', 'Другое'],
-      'Старший жрец': ['Малый ритуал', 'Жертвоприношение', 'Большое жертвоприношение', 'Вербовка послушников', 'Другое'],
-      'Глава ячейки': ['Основать ячейку', 'Общая вербовка', 'Тушение слухов', 'Подкуп', 'Саботаж', 'Инфильтрация', 'Захват жертвы', 'Другое']
+      'Капитан флота': ['Торговый рейс', 'Контрабанда', 'Пиратство', 'Перевозка груза', 'Патруль', 'Экспедиция', 'Ремонт и пополнение команды', 'Переброска последователей', 'Списать команду на берег', 'Другое'],
+      'Старший жрец': ['Малый ритуал', 'Жертвоприношение', 'Большое жертвоприношение', 'Обращение послушников', 'Другое'],
+      'Глава ячейки': ['Основать ячейку', 'Общая вербовка', 'Подготовка братьев', 'Тушение слухов', 'Подкуп', 'Саботаж', 'Инфильтрация', 'Захват жертвы', 'Другое']
     };
 
 
+    const AUTO_MISSION_TYPES = ['Ремонт и пополнение команды', 'Переброска последователей', 'Списать команду на берег', 'Подготовка братьев', 'Общая вербовка', 'Обращение послушников', 'Переход в другую гавань', 'Вербовка послушников']; // последние два — только для ранее созданных приказов
+    const AUTO_MISSION_RATES = Object.freeze({'Общая вербовка':50,'Подготовка братьев':40,'Обращение послушников':25,'Вербовка послушников':25});
+    const FOLLOWER_KEYS = ['sailors','acolytes','portfolk','thugs','rich'];
+    const FOLLOWER_LABELS = {sailors:'Моряки',acolytes:'Послушники',portfolk:'Работяги',thugs:'Головорезы',rich:'Богачи'};
+    const UNAVAILABLE_SHIP_STATES = ['Затонул','Потерян','Захвачен'];
+    const OTHER_REPAIR_PORT = '__other_port__'; // Внешний порт: за ремонт и всю команду -1 Богатство.
+    const PASSIVE_WEALTH_PER_RICH = 5;
+    const PASSIVE_FAVOR_PER_ACOLYTES = 100;
+    const PASSIVE_INFAMY_PER_THUGS = 150;
     let app = demoState();
     let currentTab = 'overview';
     let mode = 'player';
@@ -1246,8 +1276,8 @@
           { id: loc2, name: 'Серая гавань', type: 'Городская ячейка', tier: 1, sailors: 6, acolytes: 5, portfolk: 16, thugs: 3, rich: 1, infamy: 2, status: 'Скрыта', infrastructure: 'Подвал у рыбного склада, знакомые докеры.', playerNotes: 'Полезная точка для слухов и контрабанды.', dmNotes: '' }
         ],
         ships: [
-          { id: ship1, name: 'Равенна', type: 'Парусный корабль', fleetId: fleet, state: 'Целый', sailors: 14, thugs: 4, cargo: '', features: 'Быстрая, с низким силуэтом.', playerNotes: '', dmNotes: '' },
-          { id: ship2, name: 'Ужас Глубин', type: 'Военный корабль', fleetId: '', state: 'Целый', sailors: 18, thugs: 8, cargo: '', features: 'Тяжёлое культовое судно для устрашения и абордажа.', playerNotes: '', dmNotes: '' }
+          { id: ship1, name: 'Равенна', type: 'Парусный корабль', fleetId: fleet, state: 'Целый', sailors: 14, maxSailors: 30, thugs: 4, maxThugs: 20, capacityRulesVersion: 1, passengerCapacity: 30, cargo: '', features: 'Быстрая, с низким силуэтом.', playerNotes: '', dmNotes: '' },
+          { id: ship2, name: 'Ужас Глубин', type: 'Военный корабль', fleetId: '', state: 'Целый', sailors: 18, maxSailors: 40, thugs: 8, maxThugs: 70, capacityRulesVersion: 1, passengerCapacity: 35, cargo: '', features: 'Тяжёлое культовое судно для устрашения и абордажа.', playerNotes: '', dmNotes: '' }
         ],
         fleets: [
           { id: fleet, name: 'Чёрная Бездна', captainId: cap, locationId: loc1, status: 'Свободен', currentMissionId: '', playerNotes: 'Первый боевой флот Айзека.', dmNotes: '' }
@@ -1301,13 +1331,18 @@
       'Торговый рейс':'Купеческий парусник разгружается в оживлённой средневековой гавани. Бочки, мешки, торговцы, докеры, утренний туман.',
       'Контрабанда':'Ночная разгрузка корабля в укромной бухте. Люди скрытно переносят ящики между лодкой и берегом при свете одного фонаря.',
       'Пиратство':'Пиратский корабль сближается с купеческим судном в штормовом море. Абордажные крюки, натянутые снасти, силуэты моряков.',
-      'Перевозка':'Судно тайно доставляет пассажиров и закрытый груз к отдалённому острову. Фигуры в плащах на палубе и туманный берег.',
+      'Перевозка груза':'Средневековое судно доставляет бочки, ящики и тюки с грузом к отдалённому острову. Моряки разгружают припасы у туманной пристани.',
+      'Ремонт и пополнение команды':'Моряки ремонтируют повреждённый корабль у деревянного причала: чинят обшивку, натягивают канаты, новобранцы поднимаются на борт.',
+      'Переброска последователей':'Тёмная пристань в утреннем тумане, группа последователей с узлами и мешками поднимается на корабль, готовый отплыть.',
+      'Списать команду на берег':'Моряки и вооружённые пираты сходят с корабля по сходням на каменную пристань, уставшие после долгого похода.',
+      'Переход в другую гавань':'Небольшой флот входит в новую морскую гавань сквозь серый туман, дозорный на носу осматривает берег.',
+      'Подготовка братьев':'На прибрежном учебном дворе опытные моряки учат новичков морским узлам, а бойцы упражняются с оружием.',
       'Патруль':'Вооружённый парусник обходит скалистое побережье. Дозорные на носу изучают горизонт над неспокойным морем.',
       'Экспедиция':'Моряки высаживаются на неизвестный берег. Влажные скалы, вход в древний грот, фонари и походные припасы.',
       'Малый ритуал':'Тайный обряд нескольких фигур в тёмных одеяниях перед малым каменным алтарём. Свечи, соль, раковины, тёмная вода.',
       'Жертвоприношение':'Мрачный ритуал в прибрежном гроте. Жрецы окружают мокрый каменный алтарь с ритуальной чашей. Чёрное море позади.',
       'Большое жертвоприношение':'Большая подземная пещера, множество свечей, коленопреклонённые силуэты вокруг древнего алтаря, тень существа над водой.',
-      'Вербовка послушников':'Тайное собрание в подвале портового здания. Жрец обращается к небольшой группе людей при свечах, неприметный символ культа.',
+      'Обращение послушников':'Тайное собрание в подвале портового здания. Жрец посвящает последователей в веру у алтаря при свечах, неприметный символ культа.',
       'Основать ячейку':'Последователи обустраивают тайное убежище в заброшенном прибрежном доме. Карты, свечи, спрятанные ритуальные предметы.',
       'Общая вербовка':'Неприметная встреча в портовой таверне. Вербовщик беседует с рыбаками, докерами и моряками, не привлекая внимания.',
       'Тушение слухов':'Двое доверенных людей тихо беседуют с встревоженным горожанином в тёмном портовом переулке. Вдали вечерняя жизнь гавани.',
@@ -1465,7 +1500,7 @@
       if(collection==='ships') return entity?.state==='Затонул' ? ['shipStates','sunk'] : ['ships',shipTypes.includes(entity?.type) ? entity.type : 'Другое'];
       if(collection==='locations') return ['tiers',String(locationTier(entity))];
       if(collection==='leaders') return ['leaders',SHARED_LEADER_ART[entity?.type] || 'captain'];
-      if(collection==='missions') return ['missions',MISSION_ART_ACTIONS.includes(entity?.actionType) ? entity.actionType : 'Другое'];
+      if(collection==='missions') return ['missions',MISSION_ART_ACTIONS.includes(entity?.actionType) || app.ui?.artLibrary?.missions?.[entity?.actionType] ? entity.actionType : 'Другое'];
       return null;
     }
     function sharedArtSource(entity, collection) {
@@ -1500,6 +1535,7 @@
       if(!form)return;
       const entity={};
       if(collection==='leaders' || collection==='ships') entity.type=form.elements.namedItem('type')?.value;
+      if(collection==='ships') entity.state=form.elements.namedItem('state')?.value;
       if(collection==='missions') entity.actionType=form.elements.namedItem('actionType')?.value;
       if(collection==='locations') {
         ['sailors','acolytes','portfolk','thugs','rich'].forEach(k=>entity[k]=Number(form.elements.namedItem(k)?.value)||0);
@@ -1933,9 +1969,37 @@
       app.missions = app.missions || [];
       app.visions = app.visions || [];
       app.chronicle = app.chronicle || [];
+      // Старые наименования приводим к новым. Арты копируем, не удаляя старые ключи.
+      const legacyMissionNames={'Перевозка':'Перевозка груза','Вербовка послушников':'Обращение послушников'};
+      for(const [oldName,newName] of Object.entries(legacyMissionNames)){
+        if(app.ui.artLibrary.missions[oldName] && !app.ui.artLibrary.missions[newName]) app.ui.artLibrary.missions[newName]=app.ui.artLibrary.missions[oldName];
+      }
+      app.missions.forEach(m=>{if(legacyMissionNames[m.actionType])m.actionType=legacyMissionNames[m.actionType];});
       app.ships.forEach(ship => {
-        ship.sailors = Number(ship.sailors ?? ship.crew ?? 0);
-        ship.thugs = Number(ship.thugs ?? 0);
+        ship.sailors = Math.max(0, Math.floor(Number(ship.sailors ?? ship.crew ?? 0) || 0));
+        ship.thugs = Math.max(0, Math.floor(Number(ship.thugs ?? 0) || 0));
+        // Однократное обновление нормативов для существующих кораблей без списания экипажа.
+        // В дальнейшем индивидуальные правки вместимости ДМа не затираются.
+        const typeLimits=typeShipLimits(ship.type);
+        // Когг получил нормативы позднее остальных типов. Применяем их однократно
+        // только к старым автоматически выставленным значениям (равным экипажу);
+        // индивидуальные настройки ДМа не затираем.
+        if (ship.type==='Когг' && ship.cogCapacityRulesVersion!==SHIP_COG_DEFAULTS_VERSION) {
+          if (ship.maxSailors == null || Number(ship.maxSailors)===ship.sailors) ship.maxSailors=20;
+          if (ship.maxThugs == null || Number(ship.maxThugs)===ship.thugs) ship.maxThugs=35;
+          ship.cogCapacityRulesVersion=SHIP_COG_DEFAULTS_VERSION;
+        }
+        if (typeLimits && ship.capacityRulesVersion !== SHIP_CAPACITY_RULES_VERSION) {
+          ship.maxSailors = typeLimits.sailors;
+          ship.maxThugs = typeLimits.thugs;
+          ship.capacityRulesVersion = SHIP_CAPACITY_RULES_VERSION;
+        } else {
+          ship.maxSailors = Math.max(0, Math.floor(Number(ship.maxSailors ?? typeLimits?.sailors ?? ship.sailors) || 0));
+          ship.maxThugs = Math.max(0, Math.floor(Number(ship.maxThugs ?? typeLimits?.thugs ?? ship.thugs) || 0));
+        }
+        // Пустое значение = вместимость пассажиров ещё не указана, лимит не применяется.
+        if (ship.passengerCapacity === undefined || ship.passengerCapacity === '' || ship.passengerCapacity === null) ship.passengerCapacity = null;
+        else ship.passengerCapacity = Math.max(0, Math.floor(Number(ship.passengerCapacity) || 0));
         delete ship.crew;
       });
       app.locations.forEach(loc => {
@@ -2081,7 +2145,7 @@
 
       resourceRow.innerHTML = `
         ${resourceCard('Текущий тик', 'currentTick', app.cult.currentTick, 1, 999)}
-        ${resourceCard('Богатство', 'wealth', app.cult.wealth, 1, 100)}
+        ${resourceCard('Богатство', 'wealth', app.cult.wealth, 0, 100)}
         ${resourceCard('Благосклонность', 'favor', app.cult.favor, 0, 20)}
         <div class="resource-card"><div class="k">Последователи</div><div class="v">${totalAllFollowers()}</div></div>
         ${resourceCard('Дней в тике', 'daysPerTick', app.cult.daysPerTick, 1, 30)}
@@ -2095,7 +2159,7 @@
     }
 
     function updateCultNumber(key, value) {
-      app.cult[key] = key === 'wealth' ? clamp(Number(value), 1, 100) : key === 'favor' ? clamp(Number(value), 0, 20) : Number(value);
+      app.cult[key] = key === 'wealth' ? clamp(Number(value), 0, 100) : key === 'favor' ? clamp(Number(value), 0, 20) : Number(value);
       saveState(false);
       render();
     }
@@ -2404,7 +2468,7 @@
         <div class="intel-name">${escapeHtml(loc.name)}</div><div class="intel-type">${escapeHtml(loc.type)} · ${escapeHtml(loc.status)}</div>
         <div class="intel-metric"><span>Развитие ячейки</span><strong>${tier===5?'Максимальный тир':`${Math.max(0,end-total)} до тира ${tier+1}`}</strong></div>
         <div class="meter"><span style="width:${pct}%"></span></div>
-        <div class="intel-metric"><span>Дурная слава</span><strong>${loc.infamy}/10</strong></div><div class="meter danger"><span style="width:${clamp(loc.infamy*10,0,100)}%"></span></div>
+        <div class="intel-metric"><span>Дурная слава</span><strong>${loc.infamy}/10</strong></div><div class="intel-metric"><span>За тик</span><strong>+${Math.floor(positiveInteger(loc.rich)/5)} Бог. · +${Math.floor(positiveInteger(loc.acolytes)/100)} Благ. · +${Math.floor(positiveInteger(loc.thugs)/150)} Дурн.</strong></div><div class="meter danger"><span style="width:${clamp(loc.infamy*10,0,100)}%"></span></div>
         <div class="intel-facts"><div><small>Последователи</small><b>${total}</b></div><div><small>Главари</small><b>${leadersForLocation(loc.id).length} / ${leaderCapacity(loc)}</b></div></div></div>
         <div class="map-help">${escapeHtml(loc.playerNotes||loc.infrastructure||'Точка влияния Детей глубины.')}</div>
         <section class="inspector-local-leaders" aria-label="Свободные главари поселения">
@@ -2580,10 +2644,11 @@
             <div><label>Флот / локация</label><select name="sourceId" onchange="refreshMissionLeaders(this.form)">${entityOptions('fleets', '', null, 'Выбери флот')}</select></div>
             <div><label>Исполнитель</label><select name="leaderId" onchange="refreshMissionSourceFromLeader(this.form)">${entityOptions('leaders', '', l => l.type === 'Капитан флота', 'Выбери главаря')}</select></div>
             <div><label>Тип действия</label><select name="actionType" onchange="applyExpectedOutcome(this.form)">${missionActions['Капитан флота'].map(a => `<option value="${a}">${a}</option>`).join('')}</select></div>
+            <div class="full" id="autoMissionFields" hidden></div>
             <div><label>Длительность в тиках</label><input name="duration" type="number" min="1" value="1" required onchange="applyExpectedOutcome(this.form)" /></div>
             <div><label>Статус</label><select name="status"><option>Ожидает ДМ</option><option>Черновик</option></select></div>
             <div class="full"><label>План игрока</label><textarea name="plan" placeholder="Что именно Айзек приказывает сделать? Какие ограничения, цели и осторожности?"></textarea></div>
-            <div class="full"><label>Ожидаемый результат</label><div class="form-grid">
+            <div class="full" id="expectedOutcomeBlock"><label>Ожидаемый результат</label><div class="form-grid">
               <div><label>Богатство</label><input name="expectedWealth" type="number" value="1" ${isDM() ? '' : 'readonly'} /></div>
               <div><label>Благосклонность</label><input name="expectedFavor" type="number" value="0" ${isDM() ? '' : 'readonly'} /></div>
               <div><label>Дурная слава</label><input name="expectedInfamy" type="number" value="0" ${isDM() ? '' : 'readonly'} /></div>
@@ -2651,6 +2716,147 @@
     }
 
 
+    function positiveInteger(value) {
+      return Math.max(0, Math.floor(Number(value) || 0));
+    }
+    function isAutoMission(m) {
+      return !!m && AUTO_MISSION_TYPES.includes(m.actionType);
+    }
+    function autoMissionLimit(action,duration=1) {
+      return (AUTO_MISSION_RATES[action] || 0) * Math.max(1,positiveInteger(duration));
+    }
+    function autoMissionDefaults(action, duration = 1) {
+      if (['Обращение послушников','Вербовка послушников'].includes(action)) return { from:'portfolk', amount:autoMissionLimit(action,duration) };
+      if (action === 'Общая вербовка') return {amount:autoMissionLimit(action,duration)};
+      return {};
+    }
+    function autoMissionParams(m) {
+      const p={...autoMissionDefaults(m.actionType,m.duration),...(m.autoParams || {})};
+      if(m.actionType==='Переброска последователей' && !p.originId)
+        p.originId=m.autoOriginId || byId('fleets',m.sourceId)?.locationId || '';
+      if(m.actionType==='Ремонт и пополнение команды' && !p.originId)
+        p.originId=m.autoOriginId || byId('fleets',m.sourceId)?.locationId || '';
+      return p;
+    }
+    function repairPortOptions(selected='') {
+      return `<option value="">Выбери порт снабжения</option>`+
+        app.locations.map(loc=>`<option value="${escapeHtml(loc.id)}" ${loc.id===selected?'selected':''}>${escapeHtml(loc.name)}</option>`).join('')+
+        `<option value="${OTHER_REPAIR_PORT}" ${selected===OTHER_REPAIR_PORT?'selected':''}>Другой порт (−1 Богатство)</option>`;
+    }
+    function repairPortSummary(sourceId) {
+      if(sourceId===OTHER_REPAIR_PORT)
+        return `Другой порт: весь ремонт и пополнение команды за 1 Богатство из казны культа. Последователи из поселений не списываются. В казне сейчас: ${positiveInteger(app.cult.wealth)}.${positiveInteger(app.cult.wealth)<1?' Недостаточно Богатства для выполнения операции.':''}`;
+      const port=byId('locations',sourceId);
+      if(port)return `Порт «${port.name}»: новые моряки и головорезы списываются из населения этого поселения. Доступно: моряков ${positiveInteger(port.sailors)}, головорезов ${positiveInteger(port.thugs)}. Ремонт бесплатный, при нехватке людей пополнение частичное.`;
+      return 'Выбери поселение снабжения или «Другой порт». Источник не зависит от приписки флота.';
+    }
+    function refreshRepairPortInfo(form) {
+      if(!form)return;
+      const node=form.querySelector('[data-repair-port-summary]');
+      if(node)node.textContent=repairPortSummary(form.elements.namedItem('auto_originId')?.value||'');
+    }
+    function repairPortField(selected='',locked=false) {
+      if(locked){
+        const source=selected===OTHER_REPAIR_PORT?'Другой порт':nameOf('locations',selected);
+        return `<div class="full"><label>Порт снабжения</label><div class="notice">${escapeHtml(source)} · выбран при начале миссии</div><input type="hidden" name="auto_originId" value="${escapeHtml(selected)}" /></div><p class="item-sub full" data-repair-port-summary>${escapeHtml(repairPortSummary(selected))}</p>`;
+      }
+      return `<div class="full"><label>Порт снабжения</label><select name="auto_originId" onchange="refreshRepairPortInfo(this.form)">${repairPortOptions(selected)}</select></div><p class="item-sub full" data-repair-port-summary>${escapeHtml(repairPortSummary(selected))}</p>`;
+    }
+    function transferFollowerFields(originId, values={}, disabled=false) {
+      const origin=byId('locations',originId);
+      return FOLLOWER_KEYS.map(k=>{
+        const available=positiveInteger(origin?.[k]);
+        const requested=positiveInteger(values[k]);
+        return `<div><label>${FOLLOWER_LABELS[k]} <span class="item-sub" data-transfer-available="${k}">· в поселении: ${available}</span></label><input name="auto_${k}" type="number" min="0" max="${available}" step="1" value="${requested}" ${disabled?'disabled':''} oninput="clampTransferAmount(this)" /></div>`;
+      }).join('');
+    }
+    function clampTransferAmount(input) {
+      if(!input || input.disabled)return;
+      const available=positiveInteger(input.max);
+      if(input.value!=='' && (Number(input.value)>available || Number(input.value)<0)) input.value=Math.min(available,positiveInteger(input.value));
+    }
+    function refreshTransferAvailability(form) {
+      if(!form)return;
+      const originId=form.elements.namedItem('auto_originId')?.value || '';
+      const origin=byId('locations',originId);
+      for(const k of FOLLOWER_KEYS){
+        const available=positiveInteger(origin?.[k]);
+        const span=form.querySelector(`[data-transfer-available="${k}"]`);
+        const input=form.elements.namedItem('auto_'+k);
+        if(span)span.textContent=`· в поселении: ${available}`;
+        if(input){input.max=String(available);clampTransferAmount(input);}
+      }
+    }
+    function refreshAutoMissionFields(form) {
+      const holder=form.querySelector('#autoMissionFields');
+      if(!holder || !form.actionType)return;
+      const type=form.actionType.value;
+      const previousValues=holder.dataset.autoType===type?Object.fromEntries([...holder.querySelectorAll('input[name],select[name]')].map(el=>[el.name,el.value])):null;
+      holder.dataset.autoType=type;
+      holder.hidden=!AUTO_MISSION_TYPES.includes(type);
+      const outcomes=form.querySelector('#expectedOutcomeBlock');
+      if(outcomes)outcomes.hidden=!holder.hidden;
+      if(holder.hidden){holder.innerHTML='';return;}
+      const duration=Math.max(1,positiveInteger(form.duration?.value || 1));
+      const cap=autoMissionLimit(type,duration);
+      const num=(name,label,value=0,max=null)=>`<div><label>${label}</label><input name="auto_${name}" type="number" min="0" ${max===null?'':`max="${max}"`} step="1" value="${value}" /></div>`;
+      const loc=(name,label,selected='',handler='')=>`<div class="full"><label>${label}</label><select name="auto_${name}" ${handler?`onchange="${handler}"`:''}>${entityOptions('locations',selected,null,'Выбери поселение')}</select></div>`;
+      const hint=value=>`<p class="item-sub full">${value}</p>`;
+      const fleet=byId('fleets',form.sourceId?.value);
+      const selectedOrigin=previousValues?.auto_originId || fleet?.locationId || '';
+      let body='';
+      if(type==='Ремонт и пополнение команды')body=repairPortField(previousValues?.auto_originId || '');
+      if(type==='Переброска последователей')body=loc('originId','Порт отправления',selectedOrigin,'refreshTransferAvailability(this.form)')+loc('destinationId','Порт назначения')+transferFollowerFields(selectedOrigin)+hint('Числа справа от категорий показывают доступных людей в выбранном порту отправления. По завершении они будут списаны там и добавлены в порт назначения.');
+      if(type==='Списать команду на берег')body=num('sailors','Списать моряков')+num('thugs','Списать головорезов')+hint('Люди снимаются с кораблей флота и возвращаются в поселение, где флот находился при начале миссии.');
+      if(type==='Переход в другую гавань')body=loc('destinationId','Новая гавань')+hint('Устаревший приказ: доступен только для уже созданных миссий.');
+      if(type==='Общая вербовка')body=num('amount','Нанять работяг',cap,cap)+hint(`Не более 50 новых Работяг за тик. За ${duration} тик(а/ов) доступно до ${cap}. В поселение добавляются только Работяги; итог подтверждает ДМ.`);
+      if(type==='Подготовка братьев')body=num('sailors','Подготовить моряков',0,cap)+num('thugs','Подготовить головорезов',0,cap)+hint(`Общий лимит ${cap} человек за ${duration} тик(а/ов) (40 за тик). Работяги превращаются в Моряков и Головорезов 1:1, население не растёт.`);
+      if(['Обращение послушников','Вербовка послушников'].includes(type))body=`<div><label>Из кого обратить</label><select name="auto_from">${[['portfolk','Работяги'],['sailors','Моряки'],['thugs','Головорезы'],['rich','Богачи']].map(([v,label])=>`<option value="${v}">${label}</option>`).join('')}</select></div>`+num('amount','Число обращаемых',cap,cap)+hint(`Не более 25 Послушников за тик, максимум ${cap} за ${duration} тик(а/ов). Обращаются существующие последователи, не экипажи кораблей.`);
+      holder.innerHTML=`<div class="notice">Автоматическая миссия · результат применяется при подтверждении ДМом.</div><div class="form-grid" style="margin-top:10px;">${body}</div>`;
+      if(previousValues)for(const el of holder.querySelectorAll('input[name],select[name]'))if(previousValues[el.name]!==undefined)el.value=previousValues[el.name];
+      if(type==='Переброска последователей')refreshTransferAvailability(form);
+    }
+    function readAutoMissionForm(form,type,sourceIdOverride='') {
+      const params={};
+      const sourceId=sourceIdOverride || form.elements.namedItem('sourceId')?.value || '';
+      const field=key=>form.elements.namedItem('auto_'+key);
+      const count=key=>positiveInteger(field(key)?.value);
+      const duration=Math.max(1,positiveInteger(form.elements.namedItem('duration')?.value || 1));
+      const cap=autoMissionLimit(type,duration);
+      if(type==='Ремонт и пополнение команды'){
+        params.originId=field('originId')?.value || '';
+        if(params.originId!==OTHER_REPAIR_PORT && !byId('locations',params.originId))
+          return {ok:false,message:'Выбери порт снабжения или «Другой порт».'};
+      }
+      if(['Переброска последователей','Переход в другую гавань'].includes(type)){
+        params.destinationId=field('destinationId')?.value || '';
+        if(!byId('locations',params.destinationId))return {ok:false,message:'Выбери поселение назначения.'};
+      }
+      if(type==='Переброска последователей'){
+        params.originId=field('originId')?.value || '';
+        const origin=byId('locations',params.originId);
+        if(!origin)return {ok:false,message:'Выбери порт отправления.'};
+        if(params.originId===params.destinationId)return {ok:false,message:'Порты отправления и назначения должны отличаться.'};
+        FOLLOWER_KEYS.forEach(k=>params[k]=count(k));
+        for(const k of FOLLOWER_KEYS){
+          if(params[k]>positiveInteger(origin[k]))return {ok:false,message:`В порту «${origin.name}» недостаточно людей категории «${FOLLOWER_LABELS[k]}»: доступно ${positiveInteger(origin[k])}.`};
+        }
+      }
+      if(type==='Списать команду на берег'||type==='Подготовка братьев'){
+        params.sailors=count('sailors');params.thugs=count('thugs');
+      }
+      if(['Обращение послушников','Вербовка послушников'].includes(type)){
+        params.from=field('from')?.value||'portfolk';params.amount=count('amount');
+      }
+      if(type==='Общая вербовка')params.amount=count('amount');
+      if(type==='Общая вербовка' && (params.amount===0||params.amount>cap))return {ok:false,message:`Общая вербовка: выбери от 1 до ${cap} Работяг (50 за тик).`};
+      if(type==='Подготовка братьев' && params.sailors+params.thugs>cap)return {ok:false,message:`Подготовка братьев: суммарный лимит ${cap} человек (40 за тик).`};
+      if(['Обращение послушников','Вербовка послушников'].includes(type) && params.amount>cap)return {ok:false,message:`Обращение послушников: лимит ${cap} человек (25 за тик).`};
+      if(['Переброска последователей','Списать команду на берег','Подготовка братьев'].includes(type) && !Object.values(params).some(x=>typeof x==='number' && x>0))return {ok:false,message:'Укажи количество людей (больше нуля).'};
+      if(['Обращение послушников','Вербовка послушников'].includes(type) && params.amount===0)return {ok:false,message:'Укажи количество людей для обращения.'};
+      return {ok:true,params};
+    }
+
     function createMission(event) {
       event.preventDefault();
       const f = event.target;
@@ -2661,6 +2867,8 @@
         alert(validation.message);
         return;
       }
+      const autoConfig = AUTO_MISSION_TYPES.includes(actionType) ? readAutoMissionForm(f, actionType) : null;
+      if (autoConfig && !autoConfig.ok) { alert(autoConfig.message); return; }
       const mission = {
         id: uid('mission'),
         title: f.title.value.trim(),
@@ -2668,6 +2876,7 @@
         sourceId: f.sourceId.value,
         leaderId: f.leaderId.value,
         actionType,
+        autoParams: autoConfig?.params || null,
         duration,
         remaining: duration,
         status: f.status.value,
@@ -2707,6 +2916,7 @@
       if (!form || !form.actionType) return;
       const preview=form.querySelector('[data-mission-art-preview]');
       if(preview)preview.innerHTML=artBanner({actionType:form.actionType.value},'missions','editor-art');
+      refreshAutoMissionFields(form);
       const out = defaultOutcome(form.actionType.value, form.duration ? form.duration.value : 1);
       if (form.expectedWealth) form.expectedWealth.value = out.wealth;
       if (form.expectedFavor) form.expectedFavor.value = out.favor;
@@ -2813,6 +3023,14 @@
     function confirmMission(id) {
       const m = byId('missions', id);
       if (!m) return;
+      if(isAutoMission(m) && m.sourceType==='fleet'){
+        const fleetLocation=byId('fleets',m.sourceId)?.locationId || '';
+        const sourceId=['Переброска последователей','Ремонт и пополнение команды'].includes(m.actionType)
+          ? (m.autoParams?.originId || m.autoOriginId || fleetLocation) : fleetLocation;
+        if(sourceId!==OTHER_REPAIR_PORT && !byId('locations',sourceId)){
+          alert('Выбери существующий порт снабжения или отправления для автоматической миссии.');return;
+        }
+      }
       const validation = validateMissionBindings(m.sourceType, m.sourceId, m.leaderId, m.id, m.status);
       if (!validation.ok) {
         alert(validation.message);
@@ -2893,6 +3111,11 @@
 
     function startMission(m) {
       m.startTick = m.startTick || app.cult.currentTick;
+      if(isAutoMission(m) && !m.autoOriginId) {
+        m.autoOriginId=['Переброска последователей','Ремонт и пополнение команды'].includes(m.actionType)
+          ? (m.autoParams?.originId || byId('fleets',m.sourceId)?.locationId || '')
+          : (m.sourceType==='fleet' ? (byId('fleets',m.sourceId)?.locationId||'') : m.sourceId);
+      }
       const leader = byId('leaders', m.leaderId);
       if (leader) {
         leader.status = 'На миссии';
@@ -2928,15 +3151,15 @@
       if (action === 'Торговый рейс') outcome.wealth = 1 * d;
       if (action === 'Контрабанда') { outcome.wealth = 2 * d; outcome.infamy = 1 * d; }
       if (action === 'Пиратство') { outcome.wealth = 3 * d; outcome.infamy = 2 * d; }
-      if (action === 'Перевозка') outcome.wealth = -1 * d;
+      if (action === 'Перевозка груза' || action === 'Перевозка') outcome.wealth = -1 * d;
       if (action === 'Патруль') outcome.wealth = -1 * d;
       if (action === 'Экспедиция') outcome.wealth = -1 * d;
       if (action === 'Малый ритуал') outcome.favor = 1 * d;
       if (action === 'Жертвоприношение') { outcome.favor = 2 * d; outcome.infamy = 1 * d; }
       if (action === 'Большое жертвоприношение') { outcome.wealth = -1 * d; outcome.favor = 3 * d; outcome.infamy = 2 * d; }
-      if (action === 'Вербовка послушников') { outcome.wealth = -1 * d; outcome.favor = -1 * d; outcome.acolytes = 60 * d; }
+      // Послушники и обученные специалисты получаются путём конверсии; набор приводит только работяг.
       if (action === 'Основать ячейку') { outcome.wealth = -2; outcome.acolytes = 10; outcome.portfolk = 30; outcome.thugs = 5; outcome.infamy = 1; }
-      if (action === 'Общая вербовка') { outcome.wealth = -1 * d; outcome.sailors = 15 * d; outcome.portfolk = 35 * d; outcome.thugs = 10 * d; }
+      if (action === 'Общая вербовка') { outcome.wealth = -1 * d; outcome.portfolk = 50 * d; }
       if (action === 'Тушение слухов') { outcome.wealth = -1 * d; outcome.infamy = -2 * d; }
       if (action === 'Подкуп') { outcome.wealth = -2 * d; outcome.infamy = -3 * d; }
       if (action === 'Саботаж') { outcome.wealth = 0; outcome.infamy = 1 * d; }
@@ -2963,13 +3186,155 @@
       app.chronicle.push({ id: uid('chron'), tick: app.cult.currentTick, title: `Миссия: ${m.title}`, type: 'Миссия', text: parts.join('\n'), related: m.id, visibleToPlayer: true });
     }
 
+    function calculateAutoMission(m) {
+      const locations=app.locations.map(l=>({...l}));
+      const ships=app.ships.map(sh=>({...sh}));
+      const fleets=app.fleets.map(fl=>({...fl}));
+      const loc=id=>locations.find(x=>x.id===id);
+      const fleet=fleets.find(f=>f.id===m.sourceId);
+      const inFleet=fleet?ships.filter(sh=>sh.fleetId===fleet.id):[];
+      const available=inFleet.filter(sh=>!UNAVAILABLE_SHIP_STATES.includes(sh.state));
+      const p=autoMissionParams(m);
+      const lines=[];
+      const type=m.actionType;
+      const originId=['Переброска последователей','Ремонт и пополнение команды'].includes(type)
+        ? (m.autoOriginId || p.originId || (fleet ? fleet.locationId : ''))
+        : (m.autoOriginId || (fleet ? fleet.locationId : m.sourceId));
+      const externalRepair=type==='Ремонт и пополнение команды' && originId===OTHER_REPAIR_PORT;
+      const origin=loc(originId);
+      if (!isAutoMission(m)) return {ok:false,message:'Это не автоматическая миссия.'};
+      if (!origin && !externalRepair) return {ok:false,message:'Поселение для операции больше не существует. Проверь привязку миссии.'};
+      if(externalRepair && positiveInteger(app.cult.wealth)<1)
+        return {ok:false,message:'Для снабжения в «Другом порту» необходимо 1 Богатство. В казне культа недостаточно средств.'};
+      if (fleet && ['Ремонт и пополнение команды','Списать команду на берег','Переброска последователей'].includes(type) && inFleet.length===0)
+        return {ok:false,message:'Во флоте нет кораблей.'};
+      if(type==='Ремонт и пополнение команды' && available.length===0)
+        return {ok:false,message:'Нет доступных кораблей для ремонта и пополнения команды.'};
+      lines.push(`Миссия «${m.title}».`, `Операция: ${type}.`, `Источник: ${externalRepair?'Другой порт':origin.name}.`);
+      if (type === 'Ремонт и пополнение команды') {
+        let repaired=0, gainedSailors=0, gainedThugs=0, shortageS=0, shortageT=0;
+        for (const sh of available) {
+          const wasDamaged=sh.state==='Повреждён';
+          if (wasDamaged) {sh.state='Целый';repaired++;}
+          const wantedS=Math.max(0,positiveInteger(sh.maxSailors ?? sh.sailors)-positiveInteger(sh.sailors));
+          const wantedT=Math.max(0,positiveInteger(sh.maxThugs ?? sh.thugs)-positiveInteger(sh.thugs));
+          const addS=externalRepair?wantedS:Math.min(wantedS,positiveInteger(origin.sailors));
+          const addT=externalRepair?wantedT:Math.min(wantedT,positiveInteger(origin.thugs));
+          sh.sailors=positiveInteger(sh.sailors)+addS; sh.thugs=positiveInteger(sh.thugs)+addT;
+          if(!externalRepair){
+            origin.sailors=positiveInteger(origin.sailors)-addS;
+            origin.thugs=positiveInteger(origin.thugs)-addT;
+          }
+          gainedSailors+=addS;gainedThugs+=addT;shortageS+=wantedS-addS;shortageT+=wantedT-addT;
+          lines.push(`${sh.name}: ${wasDamaged?'отремонтирован':'ремонт не требовался'}, моряки +${addS}, головорезы +${addT}.`);
+        }
+        lines.push(`Отремонтировано кораблей: ${repaired}.`, `Набрано моряков: ${gainedSailors}; головорезов: ${gainedThugs}.`);
+        if(externalRepair)lines.push('Расход: −1 Богатство за всю операцию. Население поселений не изменилось.');
+        else lines.push(`Не хватило людей для полной команды: моряков ${shortageS}; головорезов ${shortageT}.`);
+        if (inFleet.length>available.length) lines.push(`Недоступных кораблей (без изменений): ${inFleet.length-available.length}.`);
+      } else if (type==='Списать команду на берег') {
+        let leftS=positiveInteger(p.sailors),leftT=positiveInteger(p.thugs), totalS=0,totalT=0;
+        for (const sh of available) {
+          const takeS=Math.min(leftS,positiveInteger(sh.sailors));const takeT=Math.min(leftT,positiveInteger(sh.thugs));
+          sh.sailors=positiveInteger(sh.sailors)-takeS;sh.thugs=positiveInteger(sh.thugs)-takeT;
+          leftS-=takeS;leftT-=takeT;totalS+=takeS;totalT+=takeT;
+          if(takeS||takeT)lines.push(`${sh.name}: на берег сошли моряки ${takeS}, головорезы ${takeT}.`);
+        }
+        origin.sailors=positiveInteger(origin.sailors)+totalS;origin.thugs=positiveInteger(origin.thugs)+totalT;
+        lines.push(`Вернулись в поселение: моряки +${totalS}, головорезы +${totalT}.`, `Не удалось списать: моряков ${leftS}, головорезов ${leftT}.`);
+      } else if (type==='Общая вербовка') {
+        const limit=autoMissionLimit(type,m.duration);
+        const wanted=positiveInteger(p.amount);
+        const recruited=Math.min(wanted,limit);
+        origin.portfolk=positiveInteger(origin.portfolk)+recruited;
+        lines.push(`Завербовано новых работяг: ${recruited}.`, `Лимит миссии: ${limit} за ${m.duration} тик(а/ов).`);
+        if(wanted>limit)lines.push(`Сверх лимита не завербовано: ${wanted-limit}.`);
+      } else if (type==='Подготовка братьев') {
+        const limit=autoMissionLimit(type,m.duration);
+        const s=Math.min(positiveInteger(p.sailors),positiveInteger(origin.portfolk),limit);
+        const t=Math.min(positiveInteger(p.thugs),positiveInteger(origin.portfolk)-s,limit-s);
+        origin.portfolk=positiveInteger(origin.portfolk)-s-t;
+        origin.sailors=positiveInteger(origin.sailors)+s;origin.thugs=positiveInteger(origin.thugs)+t;
+        lines.push(`Обучено моряков: ${s}; головорезов: ${t}.`, `Переведено работяг: ${s+t}.`, `Не выполнено по недостатку людей или лимиту: ${positiveInteger(p.sailors)+positiveInteger(p.thugs)-s-t}.`, `Лимит подготовки: ${limit}.`);
+      } else if (type==='Обращение послушников' || type==='Вербовка послушников') {
+        const from=['portfolk','sailors','thugs','rich'].includes(p.from)?p.from:'portfolk';
+        const wanted=positiveInteger(p.amount);const limit=autoMissionLimit(type,m.duration);const num=Math.min(wanted,positiveInteger(origin[from]),limit);
+        origin[from]=positiveInteger(origin[from])-num;origin.acolytes=positiveInteger(origin.acolytes)+num;
+        lines.push(`Обращено в послушников: ${num} (из категории «${FOLLOWER_LABELS[from]}»).`, `Не удалось обратить из-за нехватки людей или лимита: ${wanted-num}.`, `Лимит обращения: ${limit}.`);
+      } else if (type==='Переброска последователей') {
+        const dest=loc(p.destinationId);
+        if (!fleet || !dest || dest.id===origin.id) return {ok:false,message:'Выбери разные порты отправления и назначения.'};
+        if (available.length===0) return {ok:false,message:'Нет доступных кораблей для перевозки.'};
+        let moved=0;
+        lines.push(`Порт отправления: ${origin.name}.`, `Порт назначения: ${dest.name}.`);
+        for(const k of FOLLOWER_KEYS){
+          const amount=Math.min(positiveInteger(p[k]),positiveInteger(origin[k]));
+          origin[k]=positiveInteger(origin[k])-amount;dest[k]=positiveInteger(dest[k])+amount;
+          moved+=amount;
+          if(positiveInteger(p[k]))lines.push(`${FOLLOWER_LABELS[k]}: перевезено ${amount} из ${positiveInteger(p[k])}.`);
+        }
+        lines.push(`Всего перевезено: ${moved}.`);
+      } else if (type==='Переход в другую гавань') {
+        const dest=loc(p.destinationId);
+        if (!fleet || !dest) return {ok:false,message:'Новая гавань не найдена.'};
+        fleet.locationId=dest.id;
+        lines.push(`Флот «${fleet.name}» прибыл в поселение «${dest.name}».`);
+      }
+      const cult={...app.cult};
+      if(externalRepair) cult.wealth=positiveInteger(cult.wealth)-1;
+      if(type==='Общая вербовка'){
+        const cost=Math.max(1,positiveInteger(m.duration));
+        cult.wealth=clamp(positiveInteger(cult.wealth)-cost,0,100);
+        lines.push(`Расход на вербовку: -${positiveInteger(app.cult.wealth)-cult.wealth} Богатства.`);
+      }
+      return {ok:true,report:lines.join('\n'),locations,ships,fleets,cult};
+    }
+    function openAutomaticMissionCompletion(m,status) {
+      if(!isDM())return;
+      const success=status==='Завершена';
+      const result=success?calculateAutoMission(m):null;
+      openModal(success?'Автоматический итог миссии':'Провал автоматической миссии', `
+        <form onsubmit="finalizeAutomaticMission(event,'${m.id}','${status}')">
+          <div class="notice">${success?'Предварительный расчёт. Изменения будут внесены единожды после подтверждения ДМом.':'Миссия будет отмечена как проваленная. Автоматических изменений населения, кораблей и флота не произойдёт.'}</div>
+          ${success ? `<div class="item" style="margin:14px 0;"><h3>Рапорт</h3><p class="item-sub" style="white-space:pre-wrap;">${escapeHtml(result.ok?result.report:result.message)}</p></div>` : ''}
+          <div class="form-grid"><div class="full"><label>Комментарий ДМа (необязательно)</label><textarea name="comment" placeholder="Дополнительные события и последствия"></textarea></div></div>
+          <div class="modal-actions"><button type="button" class="ghost" onclick="closeModal()">Отмена</button><button type="submit" class="${success?'good':'danger'}" ${success&&!result.ok?'disabled':''}>${success?'Подтвердить и применить':'Подтвердить провал'}</button></div>
+        </form>`);
+    }
+    function finalizeAutomaticMission(event,id,status) {
+      event.preventDefault();
+      if(!isDM())return;
+      const m=byId('missions',id);
+      if(!m||!isAutoMission(m)||['Завершена','Провалена','Отменена'].includes(m.status)) {toast('Миссия уже закрыта.');return;}
+      const result=status==='Завершена'?calculateAutoMission(m):null;
+      if(result && !result.ok){alert(result.message);return;}
+      if(result){
+        // Одно последовательное обновление всех затронутых сущностей, затем один вызов сохранения.
+        for(const item of result.locations)Object.assign(byId('locations',item.id),item);
+        for(const item of result.ships)Object.assign(byId('ships',item.id),item);
+        for(const item of result.fleets)Object.assign(byId('fleets',item.id),item);
+        app.locations.forEach(loc=>loc.tier=locationTier(loc));
+        if(result.cult && (m.actionType==='Общая вербовка' || (m.actionType==='Ремонт и пополнение команды' && (m.autoOriginId || autoMissionParams(m).originId)===OTHER_REPAIR_PORT))) app.cult.wealth=result.cult.wealth;
+      }
+      const comment=event.target.elements.namedItem('comment')?.value.trim()||'';
+      m.outcome=defaultOutcome(m.actionType,m.duration);
+      m.expectedResult=result?'Автоматический итог':'Без числовых изменений';
+      m.status=status;m.remaining=0;m.endTick=app.cult.currentTick;
+      m.finalReport=(result?.report||'Автоматическая операция не выполнена.')+(comment?`\nКомментарий ДМа: ${comment}`:'');
+      m.resourceChanges=result?'Автоматические изменения населения, кораблей или приписки флота применены (детали в рапорте).':'Без изменений';
+      releaseMissionActors(m);
+      addMissionToChronicle(m);
+      saveState(false);closeModal();render();toast(status==='Завершена'?'Автоматическая миссия завершена.':'Миссия провалена.');
+    }
+
     function completeMission(id, status) {
       openMissionCompletion(id, status);
     }
 
     function openMissionCompletion(id, status) {
       const m = byId('missions', id);
-      if (!m) return;
+      if (!m || !isDM()) return;
+      if (isAutoMission(m)) { openAutomaticMissionCompletion(m,status); return; }
       const out = normalizeOutcome(m);
       const targetLocationId = missionTargetLocationId(m);
       const targetLocationName = targetLocationId ? nameOf('locations', targetLocationId) : 'нет связанной локации';
@@ -3051,7 +3416,7 @@
       m.consequences = f.consequences.value.trim();
       m.losses = f.losses.value.trim();
       m.resourceChanges = formatOutcome(out);
-      app.cult.wealth = clamp(app.cult.wealth + out.wealth, 1, 100);
+      app.cult.wealth = clamp(app.cult.wealth + out.wealth, 0, 100);
       app.cult.favor = clamp(app.cult.favor + out.favor, 0, 20);
       applyFleetShipOutcome(f, m);
       const loc = byId('locations', missionTargetLocationId(m));
@@ -3084,6 +3449,33 @@
       m.reports.push({ tick: app.cult.currentTick, text });
     }
 
+    function renderAutoMissionEditor(m) {
+      if(!isAutoMission(m))return '';
+      const p=autoMissionParams(m);
+      const edit=(isDM() || m.status==='Черновик') && !['Завершена','Провалена','Отменена'].includes(m.status);
+      const attr=edit?'':'disabled';
+      const cap=autoMissionLimit(m.actionType,m.duration);
+      const number=(key,label,limit=null)=>`<div><label>${label}</label><input name="auto_${key}" type="number" min="0" ${limit===null?'':`max="${limit}"`} step="1" value="${positiveInteger(p[key])}" ${attr}/></div>`;
+      const location=(key,label,selected='',handler='',locked=false)=>locked
+        ? `<div class="full"><label>${label}</label><div class="notice">${escapeHtml(nameOf('locations',selected))} · зафиксирован при старте</div><input type="hidden" name="auto_${key}" value="${escapeHtml(selected)}" /></div>`
+        : `<div class="full"><label>${label}</label><select name="auto_${key}" ${attr} ${handler?`onchange="${handler}"`:''}>${entityOptions('locations',selected,null,'Выбери поселение')}</select></div>`;
+      let inner='';
+      if(m.actionType==='Ремонт и пополнение команды'){
+        const sourceId=m.autoOriginId || p.originId || '';
+        const locked=!!m.autoOriginId || !edit;
+        inner=repairPortField(sourceId,locked);
+      }
+      if(m.actionType==='Переброска последователей'){
+        const originId=m.autoOriginId || p.originId || '';
+        inner=location('originId','Порт отправления',originId,'refreshTransferAvailability(this.form)',!!m.autoOriginId)+location('destinationId','Порт назначения',p.destinationId)+transferFollowerFields(originId,p,!edit);
+      }
+      if(m.actionType==='Списать команду на берег'||m.actionType==='Подготовка братьев')inner=number('sailors',m.actionType==='Подготовка братьев'?'Подготовить моряков':'Списать моряков',m.actionType==='Подготовка братьев'?cap:null)+number('thugs',m.actionType==='Подготовка братьев'?'Подготовить головорезов':'Списать головорезов',m.actionType==='Подготовка братьев'?cap:null);
+      if(m.actionType==='Переход в другую гавань')inner=location('destinationId','Новая гавань',p.destinationId);
+      if(m.actionType==='Общая вербовка')inner=number('amount','Нанять работяг',cap)+`<p class="item-sub full">Не более 50 Работяг за тик; за миссию максимум ${cap}.</p>`;
+      if(['Обращение послушников','Вербовка послушников'].includes(m.actionType))inner=`<div><label>Из кого обратить</label><select name="auto_from" ${attr}>${[['portfolk','Работяги'],['sailors','Моряки'],['thugs','Головорезы'],['rich','Богачи']].map(([key,label])=>`<option value="${key}" ${key===p.from?'selected':''}>${label}</option>`).join('')}</select></div>`+number('amount','Число обращаемых',cap)+`<p class="item-sub full">Не более 25 за тик; за миссию максимум ${cap}.</p>`;
+      return `<div class="full"><h3>Параметры автоматической операции</h3><div class="form-grid">${inner}</div>${m.autoOriginId && !['Переброска последователей','Ремонт и пополнение команды'].includes(m.actionType)?`<p class="item-sub">Поселение снабжения при старте: ${escapeHtml(nameOf('locations',m.autoOriginId))}</p>`:''}</div>`;
+    }
+
     function openMission(id) {
       const m = byId('missions', id);
       if (!m) return;
@@ -3098,6 +3490,7 @@
             <div><label>Источник</label><input value="${escapeHtml(m.sourceType === 'fleet' ? nameOf('fleets', m.sourceId) : nameOf('locations', m.sourceId))}" readonly /></div>
             <div><label>Исполнитель</label><input value="${escapeHtml(nameOf('leaders', m.leaderId))}" readonly /></div>
             <div class="full"><label>План игрока</label><textarea name="plan" ${!dm && m.status !== 'Черновик' ? 'readonly' : ''}>${escapeHtml(m.plan || '')}</textarea></div>
+            ${renderAutoMissionEditor(m)}
             <div class="full"><label>Ожидаемый результат</label><textarea readonly>${escapeHtml(formatOutcome(normalizeOutcome(m)))}</textarea></div>
             <div class="full"><label>Заметка для ДМ</label><textarea name="dmPrompt" ${!dm && m.status !== 'Черновик' ? 'readonly' : ''}>${escapeHtml(m.dmPrompt || '')}</textarea></div>
             <div class="full"><label>Промежуточные рапорты</label><textarea name="reportsText" ${dm ? '' : 'readonly'}>${escapeHtml((m.reports || []).map(r => `Тик ${r.tick}: ${r.text}`).join('\n'))}</textarea></div>
@@ -3118,6 +3511,16 @@
       const m = byId('missions', id);
       if (!m) return;
       const oldStatus = m.status;
+      const canEditAuto=(isDM() || m.status==='Черновик') && !['Завершена','Провалена','Отменена'].includes(m.status);
+      let autoConfig=null;
+      if(isAutoMission(m) && canEditAuto){
+        autoConfig=readAutoMissionForm(f,m.actionType,m.sourceId);
+        if(!autoConfig.ok){alert(autoConfig.message);return;}
+      }
+      if (isDM() && isAutoMission(m) && ['Завершена','Провалена','Отменена'].includes(f.status.value) && !['Завершена','Провалена','Отменена'].includes(oldStatus)) {
+        alert('Автоматическую миссию заверши через кнопку подтверждения исхода в списке приказов.');return;
+      }
+      if(autoConfig)m.autoParams=autoConfig.params;
       m.title = f.title.value;
       m.duration = Number(f.duration.value || 1);
       m.plan = f.plan ? f.plan.value : '';
@@ -3195,7 +3598,7 @@
     function renderFleetMini(f) { return `<div class="item">${artBanner(f,'fleets','mini-art')}<div class="item-title">${escapeHtml(f.name)}</div><div class="chips">${statusChip(f.status)}<span class="chip">${escapeHtml(nameOf('leaders', f.captainId))}</span></div></div>`; }
 
     function renderShipMini(s) {
-      return `<div class="item">${artBanner(s,'ships')}<div class="item-head"><div><div class="item-title">${escapeHtml(s.name)}</div><div class="item-sub">${escapeHtml(s.type)} • Флот: ${escapeHtml(nameOf('fleets', s.fleetId))}</div></div>${statusChip(s.state)}</div><div class="chips"><span class="chip">Моряки: ${s.sailors || 0}</span><span class="chip">Головорезы: ${s.thugs || 0}</span><span class="chip">Экипаж: ${shipFollowers(s)}</span>${s.features ? `<span class="chip blue">${escapeHtml(s.features)}</span>` : ''}</div><div class="actions"><button class="small ghost" onclick="openShipForm('${s.id}')">Редактировать</button><button class="small danger" onclick="deleteEntity('ships','${s.id}')">Удалить</button></div></div>`;
+      return `<div class="item">${artBanner(s,'ships')}<div class="item-head"><div><div class="item-title">${escapeHtml(s.name)}</div><div class="item-sub">${escapeHtml(s.type)} • Флот: ${escapeHtml(nameOf('fleets', s.fleetId))}</div></div>${statusChip(s.state)}</div><div class="chips"><span class="chip">Моряки: ${s.sailors || 0} / ${s.maxSailors ?? s.sailors ?? 0}</span><span class="chip">Головорезы: ${s.thugs || 0} / ${s.maxThugs ?? s.thugs ?? 0}</span><span class="chip">Экипаж: ${shipFollowers(s)}</span>${(s.sailors>s.maxSailors || s.thugs>s.maxThugs) ? '<span class="chip red">Превышена вместимость</span>' : ''}${s.features ? `<span class="chip blue">${escapeHtml(s.features)}</span>` : ''}</div><div class="actions"><button class="small ghost" onclick="openShipForm('${s.id}')">Редактировать</button><button class="small danger" onclick="deleteEntity('ships','${s.id}')">Удалить</button></div></div>`;
     }
 
     function openFleetForm(id = '') {
@@ -3219,8 +3622,8 @@
     }
 
     function openShipForm(id = '') {
-      const s = id ? byId('ships', id) : { name:'', type:'Лодка', fleetId:'', state:'Целый', sailors:0, thugs:0, cargo:'', features:'', playerNotes:'', dmNotes:'' };
-      openModal(id ? 'Редактировать корабль' : 'Добавить корабль', `<form onsubmit="saveShip(event, '${id}')"><div class="form-grid">${sharedArtNotice(s,'ships')}<div class="full"><label>Название</label><input name="name" required value="${escapeHtml(s.name)}" /></div><div><label>Тип</label><select name="type" onchange="previewSharedArt(this.form,'ships')">${optionList(shipTypes, s.type)}</select></div><div><label>Флот</label><select name="fleetId">${entityOptions('fleets', s.fleetId, null, 'Без флота')}</select></div><div><label>Состояние</label><select name="state" ${isDM() ? '' : 'disabled'} onchange="previewSharedArt(this.form,'ships')">${optionList(shipStates, s.state)}</select></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${s.sailors || 0}" /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${s.thugs || 0}" /></div><div><label>Особенности</label><input name="features" value="${escapeHtml(s.features)}" /></div><div class="full"><label>Груз</label><textarea name="cargo" ${isDM() ? '' : 'readonly'}>${escapeHtml(s.cargo)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(s.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(s.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      const s = id ? byId('ships', id) : { name:'', type:'Лодка', fleetId:'', state:'Целый', sailors:0, thugs:0, maxSailors:3, maxThugs:4, passengerCapacity:null, cargo:'', features:'', playerNotes:'', dmNotes:'' };
+      openModal(id ? 'Редактировать корабль' : 'Добавить корабль', `<form onsubmit="saveShip(event, '${id}')"><div class="form-grid">${sharedArtNotice(s,'ships')}<div class="full"><label>Название</label><input name="name" required value="${escapeHtml(s.name)}" /></div><div><label>Тип</label><select name="type" onchange="previewSharedArt(this.form,'ships');applyShipTypeDefaults(this.form)">${optionList(shipTypes, s.type)}</select></div><div><label>Флот</label><select name="fleetId">${entityOptions('fleets', s.fleetId, null, 'Без флота')}</select></div><div><label>Состояние</label><select name="state" ${isDM() ? '' : 'disabled'} onchange="previewSharedArt(this.form,'ships')">${optionList(shipStates, s.state)}</select></div><div><label>Моряки</label><input name="sailors" type="number" min="0" value="${s.sailors || 0}" /></div><div><label>Головорезы</label><input name="thugs" type="number" min="0" value="${s.thugs || 0}" /></div><div><label>Макс. моряков</label><input name="maxSailors" type="number" min="0" value="${s.maxSailors ?? s.sailors ?? 0}" ${isDM() ? '' : 'readonly'} /></div><div><label>Макс. головорезов</label><input name="maxThugs" type="number" min="0" value="${s.maxThugs ?? s.thugs ?? 0}" ${isDM() ? '' : 'readonly'} /></div><div class="full"><p class="item-sub">Для Лодки, Когга, Ладьи, Парусного корабля, Военного корабля и Галеры лимиты подставляются по типу (ДМ может скорректировать их вручную). Для «Другого» лимиты задаются вручную.</p></div><div><label>Особенности</label><input name="features" value="${escapeHtml(s.features)}" /></div><div class="full"><label>Груз</label><textarea name="cargo" ${isDM() ? '' : 'readonly'}>${escapeHtml(s.cargo)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(s.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(s.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
     }
 
     function saveShip(event, id) {
@@ -3232,8 +3635,21 @@
       obj.fleetId = f.fleetId.value;
       obj.features = f.features.value;
       obj.playerNotes = f.playerNotes.value;
-      obj.sailors = Number(f.sailors.value || 0);
-      obj.thugs = Number(f.thugs.value || 0);
+      const sailors=Math.max(0,Math.floor(Number(f.sailors.value)||0));
+      const thugs=Math.max(0,Math.floor(Number(f.thugs.value)||0));
+      const maxSailors=Math.max(0,Math.floor(Number(f.maxSailors.value)||0));
+      const maxThugs=Math.max(0,Math.floor(Number(f.maxThugs.value)||0));
+      // Старый сверхнормативный экипаж сохраняется, но увеличить превышение нельзя.
+      const existingS=id && f.type.value===obj.type ? Math.max(0,Number(obj.sailors)||0) : 0;
+      const existingT=id && f.type.value===obj.type ? Math.max(0,Number(obj.thugs)||0) : 0;
+      if ((sailors > maxSailors && sailors > existingS) || (thugs > maxThugs && thugs > existingT)) {
+        alert('Число людей на борту превышает вместимость корабля. Снизь численность команды или увеличь лимит.');
+        return;
+      }
+      obj.sailors=sailors;obj.thugs=thugs;obj.maxSailors=maxSailors;obj.maxThugs=maxThugs;
+      obj.capacityRulesVersion=SHIP_CAPACITY_RULES_VERSION;
+      if (obj.type==='Когг') obj.cogCapacityRulesVersion=SHIP_COG_DEFAULTS_VERSION;
+      // Прежнее поле пассажирских мест сохранено в данных, но больше не ограничивает переброску.
       if (isDM()) { obj.state = f.state.value; obj.cargo = f.cargo.value; obj.dmNotes = f.dmNotes?.value || ''; } else { obj.state = obj.state || 'Целый'; obj.cargo = obj.cargo || ''; }
       if (!id) app.ships.push(obj);
       saveState(false); closeModal(); render();
@@ -3251,10 +3667,11 @@
 
     function renderLocationCard(l) {
       const total = totalFollowers(l);
+      const passive=`+${Math.floor(positiveInteger(l.rich)/5)} Богатство · +${Math.floor(positiveInteger(l.acolytes)/100)} Благосклонность · +${Math.floor(positiveInteger(l.thugs)/150)} Дурная слава / тик`;
       const cap = leaderCapacity(l);
       const assigned = leadersForLocation(l.id);
       const dangerCls = l.infamy >= 8 ? 'danger-level-2' : l.infamy >= 4 ? 'danger-level-1' : 'danger-level-0';
-      return `<div class="item">${artBanner(l,'locations')}<div class="item-head"><div><div class="item-title">⌖ ${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${locationTier(l)}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
+      return `<div class="item">${artBanner(l,'locations')}<div class="item-head"><div><div class="item-title">⌖ ${escapeHtml(l.name)}</div><div class="item-sub">${escapeHtml(l.type)} • Тир ${locationTier(l)}</div></div>${statusChip(l.status)}</div><div class="stat-grid"><div class="stat">Последователи<strong>${total}</strong></div><div class="stat">Дурная слава<strong class="${dangerCls}">${l.infamy}/10</strong></div><div class="stat">Вместимость главарей<strong>${assigned.length}/${cap}</strong></div><div class="stat">Инфраструктура<strong>${escapeHtml(l.infrastructure || '—')}</strong></div></div><div class="chips"><span class="chip">Моряки ${l.sailors}</span><span class="chip">Послушники ${l.acolytes}</span><span class="chip">Работяги ${l.portfolk}</span><span class="chip">Головорезы ${l.thugs}</span><span class="chip">Богачи ${l.rich}</span></div><p class="item-sub"><strong>За тик:</strong> ${escapeHtml(['Уничтожена','Недоступна'].includes(l.status)?'Нет дохода (поселение недоступно)':passive)}</p><div class="item-sub">Главари: ${assigned.map(a => escapeHtml(a.name)).join(', ') || '—'}</div>${l.playerNotes ? `<p class="item-sub">${escapeHtml(l.playerNotes)}</p>` : ''}${isDM() && l.dmNotes ? `<p class="item-sub"><strong>Скрыто ДМ:</strong> ${escapeHtml(l.dmNotes)}</p>` : ''}<div class="actions"><button class="small ghost" onclick="openLocationForm('${l.id}')">Редактировать</button><button class="small" onclick="prefillMission('location','${l.id}')">Миссия</button><button class="small danger" onclick="deleteEntity('locations','${l.id}')">Удалить</button></div></div>`;
     }
 
     function renderLocationMini(l) { return `<div class="item"><div class="item-title">${escapeHtml(l.name)}</div><div class="chips"><span class="chip danger">Дурная слава ${l.infamy}/10</span><span class="chip">${escapeHtml(l.type)}</span></div></div>`; }
@@ -3412,17 +3829,17 @@
     }
 
     function renderDM() {
-      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время и автоматически уменьшает срок активных миссий.</p></div></div><div class="notice">Активные миссии потеряют 1 тик длительности. Когда у миссии останется 0 тиков, она получит статус «Готова к завершению», а ДМ сможет подтвердить итог одной кнопкой.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button></div></section>${renderSharedArtLibrary()}</div>`;
+      return `<div class="grid"><section class="panel span-4"><div class="panel-head"><div><h2>Ресурсы</h2><p>Быстрая правка чисел.</p></div></div>${dmResourceForm()}</section><section class="panel span-8"><div class="panel-head"><div><h2>Очередь ДМ</h2><p>Приказы на подтверждение и активные миссии.</p></div></div><h3>Ожидают подтверждения</h3><div class="list">${pendingMissions().map(renderMissionCard).join('') || empty('Нет миссий на подтверждение.')}</div><h3 style="margin-top:16px;">Активные</h3><div class="list">${activeMissions().map(renderMissionCard).join('') || empty('Нет активных миссий.')}</div></section><section class="panel span-6"><div class="panel-head"><div><h2>Следующий тик</h2><p>Продвигает время, уменьшает срок миссий и начисляет эффекты населения.</p></div></div><div class="notice">За каждые 5 Богачей в поселении: +1 Богатство. За каждые 100 Послушников: +1 Благосклонность. За каждые 150 Головорезов: +1 Дурная слава (без дополнительного ограничения в тик). Активные миссии теряют 1 тик длительности. После перехода появится рапорт, который сохраняется в Хронике.</div><button class="good" onclick="closeTick()">Следующий тик</button></section><section class="panel span-6"><div class="panel-head"><div><h2>Быстрые действия</h2></div></div><div class="actions"><button onclick="openVisionForm()">Создать видение</button><button onclick="openChronicleForm()">Запись хроники</button><button onclick="exportState()">Экспорт JSON</button></div></section>${renderSharedArtLibrary()}</div>`;
     }
 
     function dmResourceForm() {
-      return `<form onsubmit="saveDMResources(event)"><div class="form-grid"><div><label>Богатство</label><input name="wealth" type="number" min="1" max="100" value="${app.cult.wealth}" /></div><div><label>Благосклонность</label><input name="favor" type="number" min="0" max="20" value="${app.cult.favor}" /></div><div><label>Текущий тик</label><input name="currentTick" type="number" min="1" value="${app.cult.currentTick}" /></div><div><label>Дней в тике</label><input name="daysPerTick" type="number" min="1" value="${app.cult.daysPerTick}" /></div><div class="full"><label>Комментарий в хронику</label><textarea name="comment" placeholder="Например: добыча с рейда, потери, милость бога..."></textarea></div></div><div class="actions"><button type="submit">Сохранить ресурсы</button></div></form>`;
+      return `<form onsubmit="saveDMResources(event)"><div class="form-grid"><div><label>Богатство</label><input name="wealth" type="number" min="0" max="100" value="${app.cult.wealth}" /></div><div><label>Благосклонность</label><input name="favor" type="number" min="0" max="20" value="${app.cult.favor}" /></div><div><label>Текущий тик</label><input name="currentTick" type="number" min="1" value="${app.cult.currentTick}" /></div><div><label>Дней в тике</label><input name="daysPerTick" type="number" min="1" value="${app.cult.daysPerTick}" /></div><div class="full"><label>Комментарий в хронику</label><textarea name="comment" placeholder="Например: добыча с рейда, потери, милость бога..."></textarea></div></div><div class="actions"><button type="submit">Сохранить ресурсы</button></div></form>`;
     }
 
     function saveDMResources(event) {
       event.preventDefault();
       const f = event.target;
-      app.cult.wealth = clamp(Number(f.wealth.value), 1, 100);
+      app.cult.wealth = clamp(Number(f.wealth.value), 0, 100);
       app.cult.favor = clamp(Number(f.favor.value), 0, 20);
       app.cult.currentTick = Number(f.currentTick.value);
       app.cult.daysPerTick = Number(f.daysPerTick.value);
@@ -3430,8 +3847,41 @@
       saveState(false); render(); toast('Ресурсы обновлены.');
     }
 
+    function calculatePassiveTick() {
+      const perLocation=[];
+      let wealth=0,favor=0,actualWealth=0,actualFavor=0;
+      for(const loc of app.locations){
+        if(['Уничтожена','Недоступна'].includes(loc.status)) continue;
+        const gainWealth=Math.floor(positiveInteger(loc.rich)/PASSIVE_WEALTH_PER_RICH);
+        const gainFavor=Math.floor(positiveInteger(loc.acolytes)/PASSIVE_FAVOR_PER_ACOLYTES);
+        const gainInfamy=Math.floor(positiveInteger(loc.thugs)/PASSIVE_INFAMY_PER_THUGS);
+        const actualInfamy=Math.min(gainInfamy,Math.max(0,10-(Number(loc.infamy)||0)));
+        const addedWealth=Math.min(gainWealth,Math.max(0,100-app.cult.wealth-actualWealth));
+        const addedFavor=Math.min(gainFavor,Math.max(0,20-app.cult.favor-actualFavor));
+        if(gainWealth||gainFavor||gainInfamy)perLocation.push({id:loc.id,name:loc.name,wealth:addedWealth,baseWealth:gainWealth,favor:addedFavor,baseFavor:gainFavor,infamy:actualInfamy,baseInfamy:gainInfamy});
+        wealth+=gainWealth;favor+=gainFavor;actualWealth+=addedWealth;actualFavor+=addedFavor;
+      }
+      return {perLocation,wealth,favor,actualWealth,actualFavor};
+    }
+    function passiveTickReport(summary) {
+      const entries=summary.perLocation.map(x=>`${x.name}: Богатство +${x.wealth}, Благосклонность +${x.favor}, Дурная слава +${x.infamy}${x.baseInfamy!==x.infamy?' (достигнут предел 10)':''}.`);
+      if (!entries.length) entries.push('Поселения не произвели пассивных эффектов.');
+      entries.push(`ИТОГО по культу: Богатство +${summary.actualWealth}, Благосклонность +${summary.actualFavor}.`);
+      if(summary.wealth>summary.actualWealth || summary.favor>summary.actualFavor) entries.push('Часть дохода не начислена из-за максимальных значений ресурсов (100 и 20).');
+      return entries.join('\n');
+    }
     function closeTick() {
-      if (!confirm('Перейти к следующему тику? Активные миссии продвинутся на 1 тик.')) return;
+      if (!isDM()) return;
+      if (!confirm('Перейти к следующему тику? Активные миссии продвинутся на 1 тик, поселения принесут доход и повысят Дурную славу.')) return;
+      const closedTick=app.cult.currentTick;
+      const passive=calculatePassiveTick();
+      const report=passiveTickReport(passive);
+      app.cult.wealth=clamp(app.cult.wealth+passive.actualWealth,0,100);
+      app.cult.favor=clamp(app.cult.favor+passive.actualFavor,0,20);
+      for(const entry of passive.perLocation){
+        const loc=byId('locations',entry.id);
+        if(loc)loc.infamy=clamp(loc.infamy+entry.infamy,0,10);
+      }
       app.missions.forEach(m => {
         if (!['Активна','Задержана','Осложнена'].includes(m.status)) return;
         m.remaining = Math.max(0, Number(m.remaining || 0) - 1);
@@ -3442,9 +3892,11 @@
           addReport(m, `Прошёл тик. Осталось тиков: ${m.remaining}.`);
         }
       });
-      app.chronicle.push({ id: uid('chron'), tick: app.cult.currentTick, title: `Тик ${app.cult.currentTick} завершён`, type: 'Событие', text: 'ДМ перевёл кампейн к следующему тику. Активные операции продвинулись по времени.', related: '', visibleToPlayer: true });
+      app.chronicle.push({ id: uid('chron'), tick: closedTick, title: `Итоги тика ${closedTick} · хозяйство культа`, type: 'Событие', text: report, related: '', visibleToPlayer: true });
       app.cult.currentTick += 1;
-      saveState(false); render(); toast('Начался следующий тик.');
+      saveState(false); render();
+      openModal(`Итоги тика ${closedTick}`,`<div class="notice">Пассивные эффекты применены, отчёт добавлен в Хронику.</div><p class="item-sub" style="white-space:pre-wrap;margin:14px 0;">${escapeHtml(report)}</p><div class="modal-actions"><button onclick="closeModal()">Закрыть</button></div>`);
+      toast('Начался следующий тик.');
     }
 
     function prefillMission(sourceType = '', sourceId = '', leaderId = '') {
