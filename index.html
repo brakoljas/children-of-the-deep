@@ -1108,6 +1108,30 @@
     .art-library-section[open]>summary {margin-bottom:12px;border-bottom:1px solid rgba(126,190,180,.17);padding-bottom:12px;}
     .art-library-section>.art-library-grid {margin-bottom:8px;}
     .art-library-hint {font:12px/1.55 var(--ui);color:#a8cdc4;margin:5px 0 16px;}
+    /* Маршруты морских миссий рисуются в координатах фоновой карты. */
+    .fleet-route-layer {position:absolute;inset:0;z-index:2;pointer-events:none;}
+    .fleet-route-svg {position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;}
+    .sea-map.map-image-pending .fleet-route-layer,
+    .sea-map.map-image-error .fleet-route-layer {visibility:hidden;}
+    .route-progress {color:#a8d9cf;font:600 12px/1.5 var(--ui);}
+    .route-editor-pane {min-width:0;}
+    dialog:has(.route-editor-pane) {width:min(1060px,calc(100vw - 24px));max-width:none;}
+    .route-editor-map {cursor:crosshair!important;min-height:0!important;aspect-ratio:16/9;touch-action:none;box-shadow:inset 0 0 0 1px rgba(153,230,216,.35);border-radius:12px;}
+    .route-editor-map::after {pointer-events:none;}
+    .route-editor-overlays {position:absolute;inset:0;z-index:5;pointer-events:none;}
+    .route-editor-overlays .fleet-route-svg {z-index:0;}
+    .route-waypoint {position:absolute;z-index:3;transform:translate(-50%,-50%);width:25px;height:25px;min-width:25px;padding:0;border-radius:50%;background:#163642;border:2px solid #a1e0d2;color:#fff;box-shadow:0 2px 9px rgba(0,0,0,.7);font:800 11px var(--ui);cursor:grab;touch-action:none;pointer-events:auto;user-select:none;}
+    .route-waypoint.start {background:#2a827d;border-color:#ddfff2;}
+    .route-waypoint.end {background:#9c7843;border-color:#ffe3a4;}
+    .route-waypoint:hover {transform:translate(-50%,-50%);background:#2b7975;}
+    .route-waypoint.dragging {cursor:grabbing;box-shadow:0 0 0 5px rgba(87,197,188,.25),0 3px 12px #061822;}
+    .route-editor-ship {position:absolute;z-index:2;transform:translate(-50%,-50%);pointer-events:none;color:#ecfff4;font:21px var(--ui);text-shadow:0 1px 4px #031922,0 0 14px #153642;}
+    .route-editor-controls {display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center;}
+    .route-editor-guide {font:12px/1.55 var(--ui);color:#b6d4cd;margin:8px 0 12px;}
+    .route-editor-steps {display:flex;gap:14px;flex-wrap:wrap;color:#b6d4cd;font:12px var(--ui);margin-top:10px;}
+    .route-editor-steps strong {color:#e5f5ed;}
+    .route-editor-caption {padding:9px 11px;background:rgba(8,34,44,.8);border:1px solid rgba(124,192,185,.23);border-radius:9px;margin-top:10px;font:12px/1.5 var(--ui);color:#b6d8d3;}
+    @media (max-width:650px){.route-waypoint {width:29px;height:29px;min-width:29px;}}
   </style>
 </head>
 <body>
@@ -1494,7 +1518,7 @@
       if(/^(?!\/\/)(?!.*\.\.)(?:\.?\/?)[\w\-/.%]+\.(?:png|jpe?g|webp|avif)(?:\?[\w=&%-]+)?$/i.test(value)) return value;
       return '';
     }
-    // Общая библиотека для пяти тиров и трёх архетипов. Сущности больше не хранят собственные арты.
+    // Общая библиотека для пяти тиров и трёх архетипов; у главаря может быть личный арт с приоритетом над общим.
     const SHARED_LEADER_ART = {
       'Капитан флота':'captain',
       'Старший жрец':'priest',
@@ -1513,7 +1537,10 @@
       return key ? usableArtSource(app.ui?.artLibrary?.[key[0]]?.[key[1]]) : '';
     }
     function artSrc(entity, collection) {
-      if(['locations','leaders','missions','fleets','ships'].includes(collection))
+      // Портрет конкретного главаря имеет приоритет; без него действует общая библиотека роли.
+      if(collection==='leaders')
+        return usableArtSource(entity?.artImage) || sharedArtSource(entity,collection) || defaultArtUri(entity||{},collection);
+      if(['locations','missions','fleets','ships'].includes(collection))
         return sharedArtSource(entity,collection) || defaultArtUri(entity||{},collection);
       return usableArtSource(entity?.artImage) || defaultArtUri(entity||{},collection);
     }
@@ -1523,12 +1550,15 @@
       const caption=collection==='locations' ? `Тир ${locTier} · ${ART_TIER_NAMES[locTier-1]}` :
                     collection==='leaders' ? entity.type||'Главарь' : collection==='missions' ? entity.actionType||'Приказ культа' :
                     collection==='fleets' ? 'Флот Детей глубины' : collection==='ships' ? (entity?.state==='Затонул' ? `Затонул · ${entity.type||'Корабль'}` : entity.type||'Корабль') : 'Голос глубин';
-      const def=defaultArtUri(entity,collection);
+      // Для личного портрета главаря запасной фон — арт его роли из библиотеки.
+      const def=collection==='leaders' ? (sharedArtSource(entity,collection) || defaultArtUri(entity,collection)) : defaultArtUri(entity,collection);
       const src=artSrc(entity,collection);
-      const isShared=['locations','leaders','missions','fleets','ships'].includes(collection);
-      const hasCustom=isShared ? !!sharedArtSource(entity,collection) : !!usableArtSource(entity?.artImage);
+      const isShared=['locations','missions','fleets','ships'].includes(collection);
+      const personalLeaderArt=collection==='leaders' && !!usableArtSource(entity?.artImage);
+      const hasCustom=personalLeaderArt || (isShared ? !!sharedArtSource(entity,collection) : !!usableArtSource(entity?.artImage));
+      const origin=personalLeaderArt || !isShared ? 'Свой арт' : 'Общий арт';
       const cls={locations:'location-art',leaders:'leader-art',missions:'mission-art',visions:'vision-art-banner',fleets:'fleet-art',ships:'ship-art'}[collection]||'';
-      return `<div class="entity-art ${cls} ${compact}" aria-label="${escapeHtml(labels[collection]||'Иллюстрация')}"><img alt="" loading="lazy" src="${escapeHtml(src)}" data-fallback="${escapeHtml(def)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(caption)}</span>${hasCustom ? `<span class="art-origin">${isShared?'Общий арт':'Свой арт'}</span>` : ''}</div>`;
+      return `<div class="entity-art ${cls} ${compact}" aria-label="${escapeHtml(labels[collection]||'Иллюстрация')}"><img alt="" loading="lazy" src="${escapeHtml(src)}" data-fallback="${escapeHtml(def)}" onerror="this.onerror=null;this.src=this.dataset.fallback"/><span class="art-caption">${escapeHtml(caption)}</span>${hasCustom ? `<span class="art-origin">${origin}</span>` : ''}</div>`;
     }
     // Настройки общих иллюстраций доступны ДМу на отдельной панели.
     function sharedArtNotice(entity,collection) {
@@ -1652,12 +1682,18 @@
 
     function artEditor(entity,collection) {
       if(!isDM()) return artBanner(entity,collection,'editor-art');
-      return `<section class="art-editor full"><div class="art-editor-head"><b>Фоновая иллюстрация</b><span class="art-status" data-art-status>${usableArtSource(entity.artImage)?'Свой арт':'Стандартный фон'}</span></div>
+      const leader=collection==='leaders';
+      const hasPersonal=!!usableArtSource(entity?.artImage);
+      const fallbackLabel=leader?'Арт библиотеки':'Стандартный фон';
+      const help=leader
+        ? 'Личная картинка действует только для этого главаря. Если её не задавать или сбросить, используется общий арт его роли из ДМ → Библиотека иллюстраций. Загруженный файл сжимается для синхронизации; ссылка на GitHub не увеличивает размер сохранения.'
+        : 'Свой файл сжимается для синхронизации между устройствами (примерно до 135 КБ). Можно указать путь к файлу в репозитории — тогда картинка не увеличит базу.';
+      return `<section class="art-editor full"><div class="art-editor-head"><b>${leader?'Иллюстрация главаря':'Фоновая иллюстрация'}</b><span class="art-status" data-art-status>${hasPersonal?'Свой арт':fallbackLabel}</span></div>
         <div data-art-preview>${artBanner(entity,collection,'editor-art')}</div>
         <div class="art-editor-controls"><label class="small ghost art-upload-label" style="cursor:pointer;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#21494b;color:#e5f8ee;font:700 11px var(--ui)">Загрузить картинку<input type="file" accept="image/jpeg,image/png,image/webp" onchange="uploadEntityArt(event)" /></label>
-        <button type="button" class="small ghost" onclick="resetEntityArt(this.form)">Вернуть стандартную</button></div>
+        <button type="button" class="small ghost" onclick="resetEntityArt(this.form)">${leader?'Вернуть арт библиотеки':'Вернуть стандартную'}</button></div>
         <div class="art-url-row"><label>Или ссылка / путь к изображению на GitHub</label><input name="artUrl" placeholder="images/my-art.webp или https://..." value="${escapeHtml(usableArtSource(entity.artImage)?.startsWith('data:')?'':usableArtSource(entity.artImage))}" onchange="setEntityArtUrl(this.form,this.value)" /></div>
-        <p class="art-hint">Свой файл сжимается для синхронизации между устройствами (примерно до 135 КБ). Можно указать путь к файлу в репозитории — тогда картинка не увеличит базу. Изменения вступят в силу после кнопки «Сохранить».</p></section>`;
+        <p class="art-hint">${help} Изменения вступят в силу после кнопки «Сохранить».</p></section>`;
     }
     function initEntityArtForm(entity,collection) {
       const form=document.querySelector('#modal form');
@@ -1679,7 +1715,7 @@
       const preview=form.querySelector('[data-art-preview]');
       if(preview)preview.innerHTML=artBanner(entity,collection,'editor-art');
       const status=form.querySelector('[data-art-status]');
-      if(status)status.textContent=entity.artImage?'Свой арт':'Стандартный фон';
+      if(status)status.textContent=entity.artImage?'Свой арт':collection==='leaders'?'Арт библиотеки':'Стандартный фон';
     }
     function resetEntityArt(form){if(!isDM())return;form._artImage='';const url=form.elements.namedItem('artUrl');if(url)url.value='';previewEntityArt(form);}
     function setEntityArtUrl(form,url){if(!isDM())return;url=String(url||'').trim();if(url && !usableArtSource(url)){toast('Нужна https-ссылка или путь к изображению в репозитории.');return;}form._artImage=url;previewEntityArt(form);}
@@ -2434,7 +2470,116 @@
       return {x:pick[0],y:pick[1]};
     }
 
+    // Маршрут принадлежит миссии; положение флота вычисляется из уже прошедшей доли срока.
+    // Точки хранятся в процентах карты, а не в пикселях экрана или масштаба.
+    const ROUTE_MISSION_PHASES = ['Активна','Задержана','Осложнена','Готова к завершению'];
+    const MAX_ROUTE_POINTS = 80;
+    function validRoutePoints(route) {
+      if (!route || !Array.isArray(route.points)) return [];
+      return route.points.slice(0,MAX_ROUTE_POINTS).filter(p=>p && Number.isFinite(Number(p.x)) && Number.isFinite(Number(p.y)))
+        .map(p=>({x:clamp(Number(p.x),0,100),y:clamp(Number(p.y),0,100)}));
+    }
+    function routeAspect(route) {
+      const v=Number(route?.aspectRatio);
+      return Number.isFinite(v) && v>=.2 && v<=10 ? v : knownMapRatio(getMapBackgroundSrc());
+    }
+    function routeFraction(m) {
+      const duration=Math.max(1,Number(m?.duration)||1);
+      const remaining=clamp(m?.remaining??duration,0,duration);
+      return clamp((duration-remaining)/duration,0,1);
+    }
+    function pointOnRoute(points,fraction,aspect=16/9) {
+      if(!points?.length)return null;
+      if(points.length===1)return {...points[0]};
+      const segments=[];let total=0;
+      for(let i=1;i<points.length;i++) {
+        const a=points[i-1],b=points[i];
+        const length=Math.hypot((b.x-a.x)*aspect,b.y-a.y);
+        segments.push(length);total+=length;
+      }
+      if(total<.00001)return {...points[points.length-1]};
+      const target=total*clamp(fraction,0,1);
+      let cursor=0;
+      for(let i=0;i<segments.length;i++) {
+        if(cursor+segments[i]>=target || i===segments.length-1) {
+          const u=segments[i]<.00001 ? 1 : clamp((target-cursor)/segments[i],0,1);
+          return {x:points[i].x+(points[i+1].x-points[i].x)*u,y:points[i].y+(points[i+1].y-points[i].y)*u};
+        }
+        cursor+=segments[i];
+      }
+      return {...points[points.length-1]};
+    }
+    function routeCutPoints(points,fraction,aspect=16/9) {
+      if(!points.length)return [];
+      if(points.length===1)return [points[0]];
+      let total=0;const lengths=[];
+      for(let i=1;i<points.length;i++){
+        const d=Math.hypot((points[i].x-points[i-1].x)*aspect,points[i].y-points[i-1].y);
+        total+=d;lengths.push(d);
+      }
+      if(total<.00001)return [points[0]];
+      const target=total*clamp(fraction,0,1);let covered=0;
+      const path=[points[0]];
+      for(let i=0;i<lengths.length;i++){
+        if(covered+lengths[i]>=target){
+          const u=lengths[i] ? clamp((target-covered)/lengths[i],0,1) : 0;
+          path.push({x:points[i].x+(points[i+1].x-points[i].x)*u,y:points[i].y+(points[i+1].y-points[i].y)*u});
+          return path;
+        }
+        covered+=lengths[i];path.push(points[i+1]);
+      }
+      return path;
+    }
+    function fleetRouteMission(fleet) {
+      if(!fleet?.currentMissionId)return null;
+      const m=byId('missions',fleet.currentMissionId);
+      return m?.sourceType==='fleet' && m.sourceId===fleet.id && ROUTE_MISSION_PHASES.includes(m.status) && validRoutePoints(m.route).length>=2 ? m : null;
+    }
+    function fleetRoutePosition(m) {
+      const points=validRoutePoints(m?.route);
+      return points.length>=2 ? pointOnRoute(points,routeFraction(m),routeAspect(m.route)) : null;
+    }
+    function finishFleetRoutePosition(m,successful) {
+      if(m?.sourceType!=='fleet')return;
+      const fleet=byId('fleets',m.sourceId);
+      if(!fleet || fleet.currentMissionId!==m.id)return;
+      const points=validRoutePoints(m.route);
+      if(points.length<2)return;
+      const pos=successful ? points[points.length-1] : fleetRoutePosition(m);
+      if(pos){fleet.mapX=pos.x;fleet.mapY=pos.y;}
+    }
+    function routeSvgMarkup(points,fraction,aspect=16/9) {
+      if(!points || points.length<2)return '';
+      const coord=p=>`${p.x.toFixed(3)},${p.y.toFixed(3)}`;
+      const all=points.map(coord).join(' ');
+      const walked=routeCutPoints(points,fraction,aspect).map(coord).join(' ');
+      const now=pointOnRoute(points,fraction,aspect);
+      return `<svg class="fleet-route-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="${all}" fill="none" stroke="#09262f" stroke-opacity=".85" stroke-width="6" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="${all}" fill="none" stroke="#b5d5d1" stroke-opacity=".8" stroke-width="3" vector-effect="non-scaling-stroke" stroke-dasharray="7 7" stroke-linecap="round" stroke-linejoin="round"/>
+        <polyline points="${walked}" fill="none" stroke="#37cbb8" stroke-width="3.5" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"/>
+        <ellipse cx="${points[0].x}" cy="${points[0].y}" rx=".55" ry="${(.55*aspect).toFixed(3)}" fill="#72e6ca" stroke="#09252d" stroke-width="2" vector-effect="non-scaling-stroke"/>
+        <ellipse cx="${points[points.length-1].x}" cy="${points[points.length-1].y}" rx=".55" ry="${(.55*aspect).toFixed(3)}" fill="#e6c17e" stroke="#09252d" stroke-width="2" vector-effect="non-scaling-stroke"/>
+        <ellipse cx="${now.x}" cy="${now.y}" rx=".6" ry="${(.6*aspect).toFixed(3)}" fill="#e6ffff" stroke="#14526b" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+      </svg>`;
+    }
+    function selectedFleetRouteMarkup() {
+      const m=fleetRouteMission(byId('fleets',selectedMapFleetId));
+      if(!m)return '';
+      return routeSvgMarkup(validRoutePoints(m.route),routeFraction(m),routeAspect(m.route));
+    }
+    function showFleetRouteOnMap(missionId) {
+      const m=byId('missions',missionId);
+      if(!m || m.sourceType!=='fleet')return;
+      selectedMapFleetId=m.sourceId;
+      currentTab='overview';render();
+      document.getElementById('seaMap')?.scrollIntoView({block:'center',behavior:'smooth'});
+      if(!fleetRouteMission(byId('fleets',m.sourceId)))toast('Маршрут этой миссии пока не проложен или миссия уже завершена.');
+    }
+
     function fleetMapPoint(fleet,index) {
+      const activeRoute=fleetRouteMission(fleet);
+      if(activeRoute){const pt=fleetRoutePosition(activeRoute);if(pt)return pt;}
       if (fleet.mapX !== undefined && fleet.mapX !== null && fleet.mapY !== undefined && fleet.mapY !== null &&
           Number.isFinite(Number(fleet.mapX)) && Number.isFinite(Number(fleet.mapY))) {
         return {x:clamp(Number(fleet.mapX),2,98),y:clamp(Number(fleet.mapY),2,98)};
@@ -2471,6 +2616,149 @@
         <g fill="#b8ddd4" opacity=".13" font-family="serif" font-size="27" font-style="italic"><text x="352" y="75">Море теней</text><text x="24" y="352">Глубокие воды</text><text x="688" y="323">Бездна</text></g>
         <g transform="translate(843 62)" stroke="#a8c9bb" fill="none" opacity=".72"><circle r="23"/><path d="M0-32V32M-32 0H32M0-32L5-9 0 0 -5-9Z"/><text y="-40" x="-4" fill="#d1ebd5" stroke="none" font-size="14">N</text></g>
       </svg>`;
+    }
+
+    // Редактор морского пути: точки добавляются щелчками, перемещаются мышью.
+    // Черновик живёт только в этой вкладке и попадает в Supabase лишь по «Сохранить маршрут».
+    let routeEditorDraft=null;
+    let routeEditorDrag=null;
+    let routeEditorIgnoreClick=false;
+    function openFleetRouteEditor(missionId) {
+      if(!isDM())return;
+      const m=byId('missions',missionId);
+      if(!m || m.sourceType!=='fleet' || !ROUTE_MISSION_PHASES.includes(m.status)) {
+        toast('Маршрут можно прокладывать только для действующей миссии флота.');return;
+      }
+      const fleet=byId('fleets',m.sourceId);
+      if(!fleet){toast('Флот миссии не найден.');return;}
+      const current=validRoutePoints(m.route);
+      const start=current.length ? current : [fleetMapPoint(fleet,app.fleets.indexOf(fleet))];
+      const ratio=current.length ? routeAspect(m.route) : knownMapRatio(getMapBackgroundSrc());
+      routeEditorDraft={missionId,points:start.map(p=>({...p})),startPoint:{...start[0]},aspectRatio:ratio,hadRoute:current.length>=2};
+      routeEditorDrag=null;routeEditorIgnoreClick=false;
+      const source=getMapBackgroundSrc();
+      const useImage=!!source;
+      openModal(`Маршрут флота · ${fleet.name}`,`<div class="route-editor-pane">
+        <p class="route-editor-guide">ДМ: щёлкай по карте, чтобы прокладывать путь вокруг островов. Зелёная точка — старт, жёлтая — прибытие. Перетаскивай точки для правки, двойной щелчок или правая кнопка удаляют промежуточную точку. Длина всего пути делится на ${Math.max(1,Number(m.duration)||1)} равных по расстоянию частей.</p>
+        <div class="sea-map route-editor-map ${useImage?'has-user-image':''}" id="routeEditorMap" style="aspect-ratio:${ratio}" onclick="routeEditorAddPoint(event)">
+          <div class="map-stage" id="routeEditorStage">
+            ${useImage?`<img class="map-user-image" src="${escapeHtml(source)}" alt="Карта маршрута" onload="routeEditorImageLoaded(this)" onerror="routeEditorImageFailed(this)" />`:mapLandSvg()}
+            <div class="route-editor-overlays" id="routeEditorOverlays"><div id="routeEditorSvgHost"></div><div id="routeEditorPointHost"></div></div>
+          </div>
+        </div>
+        <div class="route-editor-steps"><span><strong id="routeEditorPointCount">${start.length}</strong> путевых точек</span><span>Пройдено: <strong>${Math.round(routeFraction(m)*100)}%</strong></span><span>Осталось тиков: <strong>${m.remaining}</strong></span></div>
+        <div class="route-editor-controls"><button type="button" class="small ghost" onclick="routeEditorUndo()">↶ Убрать последнюю</button><button type="button" class="small ghost" onclick="routeEditorReset()">Очистить путь</button></div>
+        <div class="route-editor-caption">При сохранении позиция флота пересчитывается по новому маршруту, но пройденная доля миссии остаётся прежней. Изменение пути не меняет длительность или оставшиеся тики. Если маршрут не задан, карта работает как раньше.</div>
+        <div class="modal-actions"><button type="button" class="ghost" onclick="closeModal()">Отмена</button>${current.length>=2?`<button type="button" class="danger" onclick="removeFleetRoute('${m.id}')">Удалить маршрут</button>`:''}<button type="button" class="good" onclick="saveFleetRoute('${m.id}')">Сохранить маршрут</button></div>
+      </div>`);
+      routeEditorDraw();
+    }
+    function routeEditorImageLoaded(image) {
+      if(!routeEditorDraft || !image.naturalWidth || !image.naturalHeight)return;
+      const aspect=image.naturalWidth/image.naturalHeight;
+      const map=document.getElementById('routeEditorMap');
+      if(map)map.style.aspectRatio=String(aspect);
+      routeEditorDraft.aspectRatio=aspect;
+      rememberMapRatio(getMapBackgroundSrc(),image.naturalWidth,image.naturalHeight);
+      routeEditorDraw(false);
+    }
+    function routeEditorImageFailed(image) {
+      const map=document.getElementById('routeEditorMap');
+      if(map){map.classList.remove('has-user-image');map.style.background='#0e2a37';}
+      toast('Фон карты недоступен. Проверь изображение карты перед прокладкой пути.');
+    }
+    function routeEditorEventPoint(event) {
+      const stage=document.getElementById('routeEditorStage');
+      if(!stage)return null;
+      const bounds=stage.getBoundingClientRect();
+      if(!bounds.width || !bounds.height)return null;
+      return {x:clamp((event.clientX-bounds.left)/bounds.width*100,0,100),y:clamp((event.clientY-bounds.top)/bounds.height*100,0,100)};
+    }
+    function routeEditorAddPoint(event) {
+      if(!routeEditorDraft || routeEditorDrag || routeEditorIgnoreClick || event.target.closest('.route-waypoint'))return;
+      if(routeEditorDraft.points.length>=MAX_ROUTE_POINTS){toast('Лимит: 80 путевых точек.');return;}
+      const pos=routeEditorEventPoint(event);
+      if(!pos)return;
+      const previous=routeEditorDraft.points.at(-1);
+      if(previous && Math.hypot((pos.x-previous.x)*routeEditorDraft.aspectRatio,pos.y-previous.y)<.25)return;
+      routeEditorDraft.points.push(pos);routeEditorDraw();
+    }
+    function routeEditorPointDown(event,index) {
+      if(!routeEditorDraft || event.button!==0)return;
+      event.preventDefault();event.stopPropagation();
+      routeEditorDrag={index,pointerId:event.pointerId,moved:false,x:event.clientX,y:event.clientY};
+      event.currentTarget.setPointerCapture(event.pointerId);
+      event.currentTarget.classList.add('dragging');
+    }
+    function routeEditorPointMove(event) {
+      if(!routeEditorDraft || !routeEditorDrag || routeEditorDrag.pointerId!==event.pointerId)return;
+      event.stopPropagation();
+      const pos=routeEditorEventPoint(event);if(!pos)return;
+      const drag=routeEditorDrag;
+      if(Math.hypot(event.clientX-drag.x,event.clientY-drag.y)>2)drag.moved=true;
+      if(!drag.moved)return;
+      routeEditorDraft.points[drag.index]=pos;
+      event.currentTarget.style.left=pos.x+'%';event.currentTarget.style.top=pos.y+'%';
+      routeEditorDraw(false);
+    }
+    function routeEditorPointUp(event) {
+      if(!routeEditorDrag || routeEditorDrag.pointerId!==event.pointerId)return;
+      event.stopPropagation();
+      routeEditorDrag=null;
+      routeEditorIgnoreClick=true;
+      setTimeout(()=>{routeEditorIgnoreClick=false;},0);
+      routeEditorDraw();
+    }
+    function routeEditorRemovePoint(event,index) {
+      event.preventDefault();event.stopPropagation();
+      if(!routeEditorDraft || index===0)return; // Начальная точка сохраняется.
+      routeEditorDraft.points.splice(index,1);routeEditorDraw();
+    }
+    function routeEditorUndo() {
+      if(!routeEditorDraft || routeEditorDraft.points.length<=1)return;
+      routeEditorDraft.points.pop();routeEditorDraw();
+    }
+    function routeEditorReset() {
+      if(!routeEditorDraft)return;
+      // Сброс черновика не должен передвигать исходную точку маршрута.
+      routeEditorDraft.points=[{...routeEditorDraft.startPoint}];
+      routeEditorDraw();
+    }
+    function routeEditorDraw(redrawPoints=true) {
+      if(!routeEditorDraft)return;
+      const m=byId('missions',routeEditorDraft.missionId);
+      const points=routeEditorDraft.points;
+      const fraction=routeFraction(m);
+      const svg=document.getElementById('routeEditorSvgHost');
+      if(svg)svg.innerHTML=routeSvgMarkup(points,fraction,routeEditorDraft.aspectRatio);
+      const count=document.getElementById('routeEditorPointCount');if(count)count.textContent=points.length;
+      if(!redrawPoints)return;
+      const host=document.getElementById('routeEditorPointHost');if(!host)return;
+      const now=points.length>=2 ? pointOnRoute(points,fraction,routeEditorDraft.aspectRatio) : null;
+      host.innerHTML=points.map((p,index)=>`<button type="button" class="route-waypoint ${index===0?'start':index===points.length-1?'end':''}" style="left:${p.x}%;top:${p.y}%" title="Точка ${index+1}: потяни для перемещения${index?' · двойной щелчок удалит':''}" onpointerdown="routeEditorPointDown(event,${index})" onpointermove="routeEditorPointMove(event)" onpointerup="routeEditorPointUp(event)" onpointercancel="routeEditorPointUp(event)" onclick="event.stopPropagation()" ondblclick="routeEditorRemovePoint(event,${index})" oncontextmenu="routeEditorRemovePoint(event,${index})">${index+1}</button>`).join('')+(now?`<span class="route-editor-ship" style="left:${now.x}%;top:${now.y}%">⛵</span>`:'');
+    }
+    function saveFleetRoute(missionId) {
+      if(!isDM() || !routeEditorDraft || routeEditorDraft.missionId!==missionId)return;
+      const m=byId('missions',missionId);
+      if(!m || !ROUTE_MISSION_PHASES.includes(m.status)){toast('Миссия больше не активна.');return;}
+      const points=validRoutePoints({points:routeEditorDraft.points});
+      if(points.length<2){toast('Укажи хотя бы одну точку прибытия после начальной.');return;}
+      const aspect=routeEditorDraft.aspectRatio;
+      let distance=0;
+      for(let i=1;i<points.length;i++)distance+=Math.hypot((points[i].x-points[i-1].x)*aspect,points[i].y-points[i-1].y);
+      if(distance<.1){toast('Маршрут слишком короткий.');return;}
+      m.route={points,aspectRatio:aspect};
+      saveState(false);routeEditorDraft=null;closeModal();render();
+      toast(`Маршрут сохранён: ${points.length} точек. Прогресс ${Math.round(routeFraction(m)*100)}%.`);
+    }
+    function removeFleetRoute(missionId) {
+      if(!isDM() || !routeEditorDraft || routeEditorDraft.missionId!==missionId)return;
+      const m=byId('missions',missionId);
+      if(!m || !validRoutePoints(m.route).length)return;
+      if(!confirm('Удалить путь? Флот останется на уже достигнутой точке карты.'))return;
+      const fleet=byId('fleets',m.sourceId),point=fleetRoutePosition(m);
+      if(fleet && point){fleet.mapX=point.x;fleet.mapY=point.y;}
+      delete m.route;routeEditorDraft=null;saveState(false);closeModal();render();toast('Маршрут удалён.');
     }
 
     function renderSeaMap(context='overview') {
@@ -2512,7 +2800,7 @@
         </div>
         <div class="sea-map ${mapPlacementMode ? 'is-placing' : ''} ${imageExpected ? 'has-user-image map-image-pending' : ''}" id="seaMap" ${initialAspectRatio} onclick="mapBackgroundClick(event)" onwheel="mapWheel(event)" onpointerdown="mapPanDown(event)" onpointermove="mapPanMove(event)" onpointerup="mapPanUp(event)" onpointercancel="mapPanUp(event)">
           <div class="map-stage" id="mapStage" style="transform:translate(${mapOffsetX}px, ${mapOffsetY}px) scale(${mapZoom})">
-            ${allowDefaultIllustration ? mapLandSvg() : ''}${imageExpected ? `<img class="map-user-image" alt="" src="${escapeHtml(mapImageSrc)}" loading="eager" decoding="async" onload="mapImageLoaded(this)" onerror="mapImageFailed(this)" />` : ''}${pins}${fleetPins}
+            ${allowDefaultIllustration ? mapLandSvg() : ''}${imageExpected ? `<img class="map-user-image" alt="" src="${escapeHtml(mapImageSrc)}" loading="eager" decoding="async" onload="mapImageLoaded(this)" onerror="mapImageFailed(this)" />` : ''}<div class="fleet-route-layer" id="fleetRouteLayer">${selectedFleetRouteMarkup()}</div>${pins}${fleetPins}
           </div>
           ${imageExpected ? '<div class="map-image-feedback" aria-live="polite">Загрузка карты…</div>' : ''}
           <span class="map-caption">${mapPlacementMode ? 'НАЖМИ НА КАРТУ, ЧТОБЫ СОЗДАТЬ ПОСЕЛЕНИЕ' : isDM() ? 'ПЕРЕТАСКИВАЙ МАРКЕРЫ · КОЛЁСИКО ДЛЯ МАСШТАБА' : 'КОЛЁСИКО — МАСШТАБ · ПЕРЕТАСКИВАНИЕ — ПЕРЕМЕЩЕНИЕ'}</span>
@@ -2535,18 +2823,21 @@
         const fleetCaptain=byId('leaders',selectedFleet.captainId);
         const crew=fleetShips.reduce((acc,ship)=>acc+shipFollowers(ship),0);
         const location=byId('locations',selectedFleet.locationId);
+        const voyage=fleetRouteMission(selectedFleet);
+        const routeProgress=voyage ? `<div class="route-progress">Маршрут: ${Math.round(routeFraction(voyage)*100)}% · пройдено ${Math.max(0,Number(voyage.duration||1)-Number(voyage.remaining||0))} из ${voyage.duration} тиков</div>` : '';
+        const routeButton=voyage && isDM() ? `<button class="small ghost" onclick="openFleetRouteEditor('${voyage.id}')">Изменить маршрут</button>` : '';
         return `<section class="panel map-inspector">${artBanner(selectedFleet,'fleets','inspector-art')}<div><div class="intel-kicker">Морское донесение · флот</div>
           <div class="intel-name">⛵ ${escapeHtml(selectedFleet.name)}</div>
           <div class="intel-type">${escapeHtml(selectedFleet.status)} · ${escapeHtml(location?.name||'В открытом море')}</div>
           <div class="intel-facts" style="margin-top:16px"><div><small>Корабли</small><b>${fleetShips.length}</b></div><div><small>Экипаж</small><b>${crew}</b></div></div>
           <div class="intel-metric"><span>Капитан</span><strong>${escapeHtml(fleetCaptain?.name||'Не назначен')}</strong></div>
-          <div class="intel-metric"><span>Текущая миссия</span><strong>${escapeHtml(nameOf('missions',selectedFleet.currentMissionId,'—'))}</strong></div></div>
+          <div class="intel-metric"><span>Текущая миссия</span><strong>${escapeHtml(nameOf('missions',selectedFleet.currentMissionId,'—'))}</strong></div>${routeProgress}</div>
           <div class="map-help">${escapeHtml(selectedFleet.playerNotes||'Флот на службе Детей глубины.')}</div>
           <details class="fleet-ships inspector-fleet-ships" ${mapInspectorExpandedFleetId === selectedFleet.id ? 'open' : ''} ontoggle="rememberInspectorFleetShips('${selectedFleet.id}', this.open)">
             <summary>Корабли флота: ${fleetShips.length} · Экипаж: ${crew}</summary>
             <div class="list" style="margin-top:10px;">${fleetShips.map(renderShipMini).join('') || '<div class="empty">Во флоте нет кораблей.</div>'}</div>
           </details>
-          <div class="actions" style="margin-top:auto"><button class="small" onclick="prefillMission('fleet','${selectedFleet.id}')">Отдать приказ</button><button class="small ghost" onclick="openFleetForm('${selectedFleet.id}')">Открыть флот</button></div>
+          <div class="actions" style="margin-top:auto"><button class="small" onclick="prefillMission('fleet','${selectedFleet.id}')">Отдать приказ</button><button class="small ghost" onclick="openFleetForm('${selectedFleet.id}')">Открыть флот</button>${routeButton}</div>
         </section>`;
       }
       const loc=byId('locations',selectedMapLocationId)||app.locations[0];
@@ -2601,6 +2892,8 @@
     }
 
     function refreshMapSelection() {
+      const routeLayer=document.getElementById('fleetRouteLayer');
+      if(routeLayer)routeLayer.innerHTML=selectedFleetRouteMarkup();
       const locationId = byId('locations', selectedMapLocationId)?.id || app.locations[0]?.id || '';
       document.querySelectorAll('.sea-map .location-pin').forEach(pin => {
         pin.classList.toggle('selected', !selectedMapFleetId && pin.dataset.mapId === locationId);
@@ -2629,6 +2922,9 @@
     function mapPinDown(event,id,collection='locations') {
       event.stopPropagation();
       if(!isDM() || mapPlacementMode || event.button!==0) return;
+      if(collection==='fleets' && fleetRouteMission(byId('fleets',id))){
+        toast('Флот следует по маршруту миссии. Измени его через «Маршрут» в приказе.');return;
+      }
       const pin=event.currentTarget;
       mapDrag={id,collection,x:event.clientX,y:event.clientY,moved:false,pin};
       pin.setPointerCapture(event.pointerId);
@@ -3022,6 +3318,13 @@
       if (form.expectedRich) form.expectedRich.value = out.rich;
     }
 
+    function missionRouteButtons(m) {
+      if(m.sourceType!=='fleet')return '';
+      const active=ROUTE_MISSION_PHASES.includes(m.status);
+      if(!active)return '';
+      const hasRoute=validRoutePoints(m.route).length>=2;
+      return `${isDM()?`<button class="small ghost" onclick="openFleetRouteEditor('${m.id}')">${hasRoute?'✎ Изменить маршрут':'✎ Проложить маршрут'}</button>`:''}${hasRoute?`<button class="small ghost" onclick="showFleetRouteOnMap('${m.id}')">На карте · ${Math.round(routeFraction(m)*100)}%</button>`:''}`;
+    }
     function renderMissionCompact(m) {
       const leader = byId('leaders', m.leaderId);
       const sourceName = m.sourceType === 'fleet' ? nameOf('fleets', m.sourceId) : nameOf('locations', m.sourceId);
@@ -3037,10 +3340,11 @@
           <div class="mission-compact-body">
             <div class="item-sub">${escapeHtml(sourceName)} • длительность ${m.duration} • тик начала: ${m.startTick ?? '—'}</div>
             <div class="clock"><span style="width:${pct}%"></span></div>
+          ${validRoutePoints(m.route).length>=2 ? `<p class="route-progress">Морской маршрут: ${Math.round(routeFraction(m)*100)}% · ${validRoutePoints(m.route).length} точек</p>` : ''}
             ${m.outcome ? `<p class="item-sub"><strong>Ожидаемый результат:</strong> ${escapeHtml(formatOutcome(m.outcome))}</p>` : ''}
             ${m.plan ? `<p class="item-sub"><strong>План:</strong> ${escapeHtml(m.plan)}</p>` : ''}
             ${lastReport ? `<p class="item-sub"><strong>Последний рапорт:</strong> ${escapeHtml(lastReport)}</p>` : ''}
-            <div class="actions"><button class="small ghost" onclick="openMission('${m.id}')">Открыть</button>${m.status === 'Ожидает ДМ' ? `<button class="small danger" onclick="deletePendingMission('${m.id}')">Удалить</button>` : ''}${isDM() ? dmMissionButtons(m) : ''}</div>
+            <div class="actions"><button class="small ghost" onclick="openMission('${m.id}')">Открыть</button>${m.status === 'Ожидает ДМ' ? `<button class="small danger" onclick="deletePendingMission('${m.id}')">Удалить</button>` : ''}${isDM() ? dmMissionButtons(m) : ''}${missionRouteButtons(m)}</div>
           </div>
         </details>
       `;
@@ -3057,11 +3361,12 @@
           <div class="item-head"><div><div class="item-title">${escapeHtml(m.title)}</div><div class="item-sub">${escapeHtml(m.actionType)} • ${escapeHtml(sourceName)} • ${escapeHtml(leader?.name || 'Без исполнителя')}</div></div>${statusChip(m.status)}</div>
           <div class="chips"><span class="chip blue">Длительность: ${m.duration}</span><span class="chip ${m.remaining <= 0 ? 'good' : ''}">Осталось: ${m.remaining}</span><span class="chip">Тик начала: ${m.startTick ?? '—'}</span></div>
           <div class="clock"><span style="width:${pct}%"></span></div>
+          ${validRoutePoints(m.route).length>=2 ? `<p class="route-progress">Морской маршрут: ${Math.round(routeFraction(m)*100)}% · ${validRoutePoints(m.route).length} точек</p>` : ''}
           ${m.plan ? `<p class="item-sub"><strong>План:</strong> ${escapeHtml(m.plan)}</p>` : ''}
           ${m.outcome ? `<p class="item-sub"><strong>Ожидаемый результат:</strong> ${escapeHtml(formatOutcome(m.outcome))}</p>` : ''}
           ${lastReport ? `<p class="item-sub"><strong>Последний рапорт:</strong> ${escapeHtml(lastReport)}</p>` : ''}
           ${m.finalReport ? `<p class="item-sub"><strong>Итог:</strong> ${escapeHtml(m.finalReport)}</p>` : ''}
-          <div class="actions"><button class="small ghost" onclick="openMission('${m.id}')">Открыть</button>${m.status === 'Черновик' ? `<button class="small" onclick="sendMissionToDM('${m.id}')">Отправить ДМу</button>` : ''}${m.status === 'Ожидает ДМ' ? `<button class="small danger" onclick="deletePendingMission('${m.id}')">Удалить</button>` : ''}${isDM() ? dmMissionButtons(m) : ''}</div>
+          <div class="actions"><button class="small ghost" onclick="openMission('${m.id}')">Открыть</button>${m.status === 'Черновик' ? `<button class="small" onclick="sendMissionToDM('${m.id}')">Отправить ДМу</button>` : ''}${m.status === 'Ожидает ДМ' ? `<button class="small danger" onclick="deletePendingMission('${m.id}')">Удалить</button>` : ''}${isDM() ? dmMissionButtons(m) : ''}${missionRouteButtons(m)}</div>
         </div>
       `;
     }
@@ -3411,6 +3716,7 @@
         if(result.cult && (m.actionType==='Общая вербовка' || (m.actionType==='Ремонт и пополнение команды' && (m.autoOriginId || autoMissionParams(m).originId)===OTHER_REPAIR_PORT))) app.cult.wealth=result.cult.wealth;
       }
       const comment=event.target.elements.namedItem('comment')?.value.trim()||'';
+      finishFleetRoutePosition(m,status==='Завершена');
       m.outcome=defaultOutcome(m.actionType,m.duration);
       m.expectedResult=result?'Автоматический итог':'Без числовых изменений';
       m.status=status;m.remaining=0;m.endTick=app.cult.currentTick;
@@ -3502,6 +3808,7 @@
         thugs: Number(f.thugs.value || 0),
         rich: Number(f.rich.value || 0)
       };
+      finishFleetRoutePosition(m,status==='Завершена');
       m.outcome = out;
       m.status = status;
       m.remaining = 0;
@@ -3583,6 +3890,7 @@
             <div><label>Осталось тиков</label><input name="remaining" type="number" min="0" value="${m.remaining}" ${dm ? '' : 'readonly'} /></div>
             <div><label>Источник</label><input value="${escapeHtml(m.sourceType === 'fleet' ? nameOf('fleets', m.sourceId) : nameOf('locations', m.sourceId))}" readonly /></div>
             <div><label>Исполнитель</label><input value="${escapeHtml(nameOf('leaders', m.leaderId))}" readonly /></div>
+            ${m.sourceType==='fleet' && validRoutePoints(m.route).length>=2 ? `<div class="full"><p class="route-progress">Маршрут на карте: ${Math.round(routeFraction(m)*100)}% · ${validRoutePoints(m.route).length} путевых точек</p></div>` : ''}
             <div class="full"><label>План игрока</label><textarea name="plan" ${!dm && m.status !== 'Черновик' ? 'readonly' : ''}>${escapeHtml(m.plan || '')}</textarea></div>
             ${renderAutoMissionEditor(m)}
             <div class="full"><label>Ожидаемый результат</label><textarea readonly>${escapeHtml(formatOutcome(normalizeOutcome(m)))}</textarea></div>
@@ -3633,6 +3941,7 @@
         m.reports = parseReports(f.reportsText ? f.reportsText.value : '');
         if (['Завершена','Провалена','Отменена'].includes(m.status)) {
           if (!['Завершена','Провалена','Отменена'].includes(oldStatus)) {
+            finishFleetRoutePosition(m,m.status==='Завершена');
             m.endTick = app.cult.currentTick;
             releaseMissionActors(m);
             addMissionToChronicle(m);
@@ -3843,8 +4152,8 @@
     function openLeaderForm(id = '') {
       const l = id ? byId('leaders', id) : { name:'', type:'Капитан флота', assignmentId:'', status:'Свободен', currentMissionId:'', description:'', playerNotes:'', dmNotes:'' };
       const assignmentOpts = l.type === 'Капитан флота' ? entityOptions('fleets', l.assignmentId, null, 'Резерв') : entityOptions('locations', l.assignmentId, null, 'Без локации');
-      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid">${sharedArtNotice(l,'leaders')}<div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form);previewSharedArt(this.form,'leaders')">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
-      // Иллюстрация берётся из общей библиотеки выбранной роли.
+      openModal(id ? 'Редактировать главаря' : 'Добавить главаря', `<form onsubmit="saveLeader(event, '${id}')"><div class="form-grid">${artEditor(l,'leaders')}<div class="full"><label>Имя</label><input name="name" required value="${escapeHtml(l.name)}" /></div><div><label>Тип</label><select name="type" onchange="refreshLeaderAssignment(this.form);previewEntityArt(this.form)">${optionList(leaderTypes, l.type)}</select></div><div><label>Привязка</label><select name="assignmentId">${assignmentOpts}</select></div><div><label>Статус</label><select name="status" ${isDM() ? '' : 'disabled'}>${optionList(leaderStatuses, l.status)}</select></div><div class="full"><label>Описание</label><textarea name="description">${escapeHtml(l.description)}</textarea></div><div class="full"><label>Заметки игрока</label><textarea name="playerNotes">${escapeHtml(l.playerNotes)}</textarea></div>${isDM() ? `<div class="full"><label>Скрытые заметки ДМ</label><textarea name="dmNotes">${escapeHtml(l.dmNotes)}</textarea></div>` : ''}</div><div class="modal-actions"><button type="submit">Сохранить</button></div></form>`);
+      initEntityArtForm(l,'leaders');
     }
 
     function refreshLeaderAssignment(form) {
@@ -3861,6 +4170,7 @@
       obj.description = f.description.value;
       obj.playerNotes = f.playerNotes.value;
       if (isDM()) { obj.status = f.status.value; obj.dmNotes = f.dmNotes?.value || ''; } else { obj.status = obj.status || 'Свободен'; }
+      saveEntityArt(f,obj);
       if (!id) app.leaders.push(obj);
       saveState(false); closeModal(); render();
     }
