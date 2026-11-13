@@ -980,6 +980,29 @@
     .chronicle-timeline {border-left:1px solid rgba(97,197,172,.36);margin-left:12px;padding-left:20px;position:relative;}
     .chronicle-timeline>.item::before {content:'';position:absolute;left:-26px;top:22px;width:9px;height:9px;border-radius:50%;background:#6cd5ad;opacity:1;}
     .mission-board .item {border-left:3px solid rgba(96,203,172,.5);}
+    /* Active mission lists: compact role headers in command center, illustrated headers on missions tab. */
+    .mission-role-group {display:flex;flex-direction:column;gap:9px;min-width:0;margin:0 0 16px;}
+    .mission-role-group:last-child {margin-bottom:0;}
+    .mission-role-heading {display:flex;align-items:center;gap:9px;min-width:0;
+      font:700 12px/1.25 var(--ui);letter-spacing:.055em;color:#b8dcd3;}
+    .mission-role-heading::after {content:'';height:1px;flex:1;background:rgba(110,181,166,.2);}
+    .mission-role-count {font:700 11px var(--ui);color:#88bcb2;border-radius:20px;
+      border:1px solid rgba(110,181,166,.28);padding:2px 7px;white-space:nowrap;order:3;}
+    .mission-role-group .list {min-width:0;}
+    .mission-role-heading--illustrated {padding:9px 11px;border:1px solid rgba(106,175,163,.25);
+      border-radius:12px;background:linear-gradient(90deg,rgba(30,84,88,.21),rgba(6,30,39,.3));gap:13px;
+      font:700 22px/1.15 var(--display);letter-spacing:0;color:#ecf7ef;}
+    .mission-role-heading--illustrated::after {display:none;}
+    .mission-role-picture {width:86px;height:64px;flex:0 0 86px;border-radius:9px;overflow:hidden;
+      border:1px solid rgba(123,186,173,.28);background:#09232b;}
+    .mission-role-picture img {display:block;width:100%;height:100%;object-fit:cover;}
+    .mission-role-heading-text {min-width:0;flex:1;}
+    .mission-role-heading-text small {display:block;margin-top:5px;font:11px/1.3 var(--ui);color:#9fc4b8;}
+    @media (max-width:600px) {
+      .mission-role-heading--illustrated {font-size:19px;padding:8px;gap:9px;}
+      .mission-role-picture {width:64px;height:56px;flex-basis:64px;}
+    }
+
     .fleet-card-decor {display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;
       border-radius:12px;background:rgba(36,94,102,.4);border:1px solid var(--line);font-size:25px;margin-right:10px;}
     /* A native select arrow avoids repeating-triangle artifacts in Firefox. */
@@ -1188,6 +1211,7 @@
   <script>
     const STORAGE_KEY = 'deti_glubiny_state_v2';
     const MISSION_SAFETY_BACKUPS_KEY = 'deti_glubiny_mission_backups_v1';
+    const UNSYNCED_SAFETY_KEY = 'deti_glubiny_unsynced_safety_v1';
     const DM_PASSWORD = 'hydrcad';
     const SUPABASE_URL = 'https://pyuuskjmaxwfzfyipugj.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_P4Dh_XyKloDWH8ORpsv5hA_adHj8foA';
@@ -1196,6 +1220,7 @@
     const SUPABASE_SAVE_RETRIES = 3;
     const SUPABASE_REST_URL = `${SUPABASE_URL}/rest/v1/cult_states`;
     let cloudSaveEnabled = false;
+    let cloudReady = false; // The live app is unlocked only after a successful Supabase read.
     let cloudSaveTimer = null;
     let hasUnsavedChanges = false;
     let editRevision = 0;
@@ -1781,22 +1806,64 @@
         localStorage.setItem(MISSION_SAFETY_BACKUPS_KEY,JSON.stringify(backups));
       } catch(error) { console.warn('Не удалось создать резервную копию приказов:',error); }
     }
-    function syncConflictNotice(reason) {
-      hasUnsavedChanges=true;
+    function preserveUnsyncedState(state,reason) {
+      archiveMissions(state,reason);
+      // A safety copy is not a source of truth and is NEVER loaded automatically.
+      // Preserve it only when replacing a divergent local/unsent version.
+      try {
+        localStorage.setItem(UNSYNCED_SAFETY_KEY,JSON.stringify({savedAt:new Date().toISOString(),reason,state}));
+      }catch(error){console.warn('Не удалось сохранить полную аварийную копию:',error);}
+    }
+    function renderCloudUnavailable(message='Не удалось получить данные из Supabase.') {
+      cloudReady=false;
       cloudSaveEnabled=false;
-      syncConflict=true;
-      syncStatus='Конфликт синхронизации';
+      document.body.classList.add('cloud-unavailable');
+      document.getElementById('tabs').innerHTML='';
+      document.getElementById('resourceRow').innerHTML='';
+      const main=document.getElementById('main');
+      if(main)main.innerHTML=`<section class="panel"><h2>Нет подключения к данным культа</h2>
+        <p>${escapeHtml(message)}</p>
+        <p class="item-sub">Supabase — единственный источник актуального состояния. Локальная копия не подставляется вместо облачной и не загружается автоматически.</p>
+        <div class="actions"><button onclick="retryCloudLoad()">Повторить загрузку из Supabase</button>
+          ${hasUnsavedChanges ? '<button class="warn" onclick="retryCloudSave()">Повторить сохранение изменений</button>' : ''}
+        </div></section>`;
       updateSyncCard();
-      toast(reason||'В Supabase появилась другая версия. Изменения сохранены локально, облако не перезаписано.');
+    }
+    async function retryCloudLoad() {
+      if(saveInProgress){toast('Сохранение ещё выполняется.');return;}
+      if(hasUnsavedChanges){
+        if(!confirm('Есть изменения, которые не подтверждены Supabase. Загрузить облачную версию вместо них? Аварийная копия будет сохранена в этом браузере.'))return;
+        preserveUnsyncedState(app,'Перед повторной загрузкой Supabase');
+      }
+      renderLoading();
+      await loadStateFromSupabase(true);
+    }
+    async function retryCloudSave() {
+      if(saveInProgress){toast('Сохранение ещё выполняется.');return;}
+      if(!hasUnsavedChanges){await retryCloudLoad();return;}
+      const ok=await saveStateToSupabase(true);
+      if(ok){cloudReady=true;cloudSaveEnabled=true;document.body.classList.remove('cloud-unavailable');render();toast('Изменения сохранены в Supabase.');}
+    }
+    async function syncConflictNotice(reason) {
+      // A stale tab must not overwrite the cloud. Save a local recovery copy,
+      // then automatically replace the displayed state with the cloud version.
+      preserveUnsyncedState(app,reason||'Конфликт облачной версии');
+      syncConflict=true;
+      cloudSaveEnabled=false;
+      syncStatus='Облако изменилось';
+      renderLoading();
+      const loaded=await loadStateFromSupabase(true);
+      if(loaded)toast('Загружена актуальная версия Supabase. Несохранённая копия оставлена в браузере.');
     }
     function saveState(show = false) {
+      if(!cloudReady){toast('Данные не загружены из Supabase. Сохранение недоступно.');return;}
       app.ui = { ...(app.ui || {}), mode, lastModifiedAt: new Date().toISOString() };
       archiveMissions(app,'Изменение приказов и состояния');
       hasUnsavedChanges = true;
       editRevision += 1;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
       if (cloudSaveEnabled && !syncConflict) saveStateToSupabase(false);
-      if (show) toast(cloudSaveEnabled && !syncConflict ? 'Состояние сохраняется в Supabase.' : 'Состояние сохранено локально.');
+      if (show) toast(cloudSaveEnabled && !syncConflict ? 'Сохранение в Supabase...' : 'Supabase недоступна: изменения не подтверждены облаком.');
     }
 
     function scheduleCloudSave() {
@@ -1828,7 +1895,7 @@
       return Date.parse(a)===Date.parse(b);
     }
     async function saveStateToSupabase(force = false) {
-      if (!force && (!hasUnsavedChanges || syncConflict)) return !syncConflict;
+      if (!force && (!hasUnsavedChanges || syncConflict || !cloudReady)) return !syncConflict && cloudReady;
       if (saveInProgress) {
         saveQueued = true;
         syncStatus = 'Ожидает сохранения';
@@ -1843,11 +1910,11 @@
         // Fail closed: a failed version check must never trigger a blind overwrite.
         const liveRevision=await readCloudRevision();
         if (!sameCloudRevision(liveRevision,lastKnownCloudRevision)) {
-          syncConflictNotice('Другая вкладка изменила Supabase. Твои приказы сохранены локально; облако не перезаписано.');
+          await syncConflictNotice('Другая вкладка изменила Supabase. Старая вкладка не может перезаписать облако.');
           return false;
         }
         if (!liveRevision && !force) {
-          syncConflictNotice('Состояние в Supabase отсутствует. Для создания новой записи требуется явное сохранение.');
+          await syncConflictNotice('Состояние в Supabase отсутствует. Запись не производится.');
           return false;
         }
         // Always send an immutable snapshot. Later edits will be sent in a queued save.
@@ -1877,14 +1944,16 @@
             if(!response.ok)throw new Error(`Supabase save ${response.status}: ${await response.text()}`);
             const rows=await response.json();
             if(!Array.isArray(rows)||rows.length!==1){
-              syncConflictNotice('В базе уже другая версия. Сохранение остановлено, приказы остались в локальной копии.');
+              await syncConflictNotice('В Supabase уже другая версия. Старая вкладка не перезапишет её.');
               return false;
             }
             lastKnownCloudRevision=rows[0].updated_at||savedAt;
             syncConflict=false;
-            syncStatus='Supabase';
+            cloudReady=true;
+            cloudSaveEnabled=true;
             lastCloudSaveAt=new Date().toLocaleTimeString();
             hasUnsavedChanges=editRevision!==writeRevision;
+            syncStatus=hasUnsavedChanges?'Ожидает сохранения':'Supabase';
             updateSyncCard();
             return true;
           }catch(error){
@@ -1896,15 +1965,13 @@
         syncStatus='Ошибка сохранения';
         lastCloudSaveAt='';
         hasUnsavedChanges=true;
-        updateSyncCard();
-        toast(`Не удалось сохранить в Supabase: ${lastError?.message||'неизвестная ошибка'}`);
+        renderCloudUnavailable(`Не удалось сохранить изменения в Supabase: ${lastError?.message||'неизвестная ошибка'}. Изменения остались только в аварийной локальной копии и не считаются сохранёнными.`);
         return false;
       }catch(error){
         console.error('Supabase revision check failed:',error);
         syncStatus='Ошибка проверки версии';
         hasUnsavedChanges=true;
-        updateSyncCard();
-        toast('Облако не перезаписано: не удалось проверить актуальность данных Supabase.');
+        renderCloudUnavailable('Не удалось проверить актуальность облачной версии. Запись остановлена; можно повторить сохранение или загрузить состояние из Supabase.');
         return false;
       }finally{
         saveInProgress=false;
@@ -1924,80 +1991,56 @@
       ]);
     }
 
-    async function loadStateFromSupabase(preferCloud = false) {
+    async function loadStateFromSupabase(allowDiscard = false) {
+      const startingRevision=editRevision;
       try {
         const response = await withTimeout(
           fetch(`${SUPABASE_REST_URL}?room_code=eq.${encodeURIComponent(ROOM_CODE)}&select=data,updated_at`, {
-            method: 'GET',
-            headers: supabaseHeaders()
-          }),
-          SUPABASE_TIMEOUT_MS,
-          'Supabase не ответил за 30 секунд.'
+            method:'GET',headers:supabaseHeaders()
+          }),SUPABASE_TIMEOUT_MS,'Supabase не ответил за 30 секунд.'
         );
-        if (!response.ok) throw new Error(`Supabase load ${response.status}: ${await response.text()}`);
-        const rows = await response.json();
-        const row = Array.isArray(rows) ? rows[0] : null;
-
-        if (row?.data?.cult) {
-          const local = loadState();
-          const cloudState = row.data;
-          lastKnownCloudRevision=row.updated_at||null;
-          syncConflict=false;
-          archiveMissions(local,'Локальная копия перед синхронизацией');
-          archiveMissions(cloudState,'Облачная копия при загрузке');
-          const localTime = local?.ui?.lastModifiedAt ? new Date(local.ui.lastModifiedAt).getTime() : 0;
-          const cloudTime = cloudState?.ui?.lastModifiedAt ? new Date(cloudState.ui.lastModifiedAt).getTime() : (row.updated_at ? new Date(row.updated_at).getTime() : 0);
-
-          if (local?.cult && localTime > cloudTime && !preferCloud) {
-            // Previously this branch incorrectly selected cloudState and could hide
-            // newer local missions. Keep local state without automatic cloud writes.
-            app=local;
-            mode=sessionStorage.getItem('deti_glubiny_dm_unlocked')==='true'?(app.ui?.mode||'player'):'player';
-            normalizeState();
-            syncStatus='Локальная копия новее';
-            render();
-            toast('Локальные данные новее облачных. Облако не перезаписано. Экспортируй JSON и сверь приказы.');
-            return false;
-          }
-
-          app = cloudState;
-          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
-          normalizeState();
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(app));
-          render();
-          syncStatus = 'Supabase';
-          hasUnsavedChanges = false;
-          toast('Состояние загружено из Supabase.');
-          return true;
-        }
-
-        const local = loadState();
-        if (local?.cult) {
-          app = local;
-          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
-          normalizeState();
-          syncStatus = 'Supabase пустая, показана локальная копия';
-          render();
-          toast('В Supabase нет состояния. Показана локальная копия. Нажми «Сохранить», если хочешь записать её в базу.');
+        if(!response.ok)throw new Error(`Supabase load ${response.status}: ${await response.text()}`);
+        const rows=await response.json();
+        const row=Array.isArray(rows)?rows[0]:null;
+        if(!row?.data?.cult){
+          syncStatus='Нет данных в Supabase';
+          renderCloudUnavailable(`Для комнаты ${ROOM_CODE} в Supabase не найдено сохранение. Локальное демо и резервные копии не подставляются вместо него.`);
           return false;
         }
-
-        normalizeState();
-        syncStatus = 'Supabase пустая, показано демо';
-        render();
-        toast('В Supabase нет состояния. Показано демо. Оно не записано в базу автоматически.');
-        return false;
-      } catch (error) {
-        console.error('Supabase load error:', error);
-        const local = loadState();
-        if (local) {
-          app = local;
-          mode = sessionStorage.getItem('deti_glubiny_dm_unlocked') === 'true' ? (app.ui?.mode || 'player') : 'player';
-          normalizeState();
+        if(!allowDiscard && (hasUnsavedChanges || editRevision!==startingRevision)){
+          // An unrelated in-flight fetch must never replace edits made after it began.
+          toast('Есть несохранённые изменения. Повтори загрузку из Supabase с подтверждением.');
+          return false;
         }
+        const local=loadState();
+        const cloudState=row.data;
+        // Even if localModifiedAt is later than updated_at, the cloud ALWAYS wins.
+        // Keep only a recovery copy if local-only missions differ from Supabase.
+        const cloudIds=new Set((cloudState.missions||[]).map(m=>m.id));
+        const absentLocallySaved=(local?.missions||[]).filter(m=>!cloudIds.has(m.id));
+        if(absentLocallySaved.length) preserveUnsyncedState(local,'Локальные приказы отсутствуют в Supabase');
+        else archiveMissions(local,'Локальный архив перед облачной загрузкой');
+        archiveMissions(cloudState,'Облачная копия при загрузке');
+        if(allowDiscard && hasUnsavedChanges)preserveUnsyncedState(app,'Несохранённые правки перед загрузкой из Supabase');
+        app=cloudState;
+        mode=sessionStorage.getItem('deti_glubiny_dm_unlocked')==='true'?(app.ui?.mode||'player'):'player';
+        normalizeState();
+        lastKnownCloudRevision=row.updated_at||null;
+        syncConflict=false;
+        cloudReady=true;
+        cloudSaveEnabled=true;
+        hasUnsavedChanges=false;
+        saveQueued=false;
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(app));
+        document.body.classList.remove('cloud-unavailable');
+        syncStatus='Supabase';
         render();
-        syncStatus = 'Локальная копия';
-        toast(`Не удалось загрузить Supabase: ${error.message}`);
+        toast(absentLocallySaved.length ? `Загружена Supabase. ${absentLocallySaved.length} отсутствующих в облаке приказов сохранено в местном архиве.` : 'Актуальное состояние загружено из Supabase.');
+        return true;
+      }catch(error){
+        console.error('Supabase load error:',error);
+        syncStatus='Ошибка загрузки Supabase';
+        renderCloudUnavailable(`Не удалось загрузить данные из Supabase: ${error.message}. Проверь соединение и повтори загрузку.`);
         return false;
       }
     }
@@ -2012,6 +2055,7 @@
     }
 
     async function forceCloudSave() {
+      if(!cloudReady){toast('Сначала загрузи актуальные данные из Supabase.');return;}
       if(!confirm(`Записать текущую версию культа в Supabase?\n\nПриказов в этой вкладке: ${(app.missions||[]).length}.\nПроверь, что старые приказы на месте. Перед заменой облачной версии рекомендуется экспорт JSON.`))return;
       archiveMissions(app,'Перед ручной отправкой в Supabase');
       app.ui={...(app.ui||{}),mode,lastModifiedAt:new Date().toISOString()};
@@ -2026,6 +2070,7 @@
     }
 
     async function forceCloudReload() {
+      if(saveInProgress){toast('Дождись завершения текущего сохранения.');return;}
       if(!confirm(`Загрузить облачную версию и заменить данные в этой вкладке?\n\nСейчас здесь ${(app.missions||[]).length} приказов. Перед заменой будет сохранена локальная копия приказов; для полной резервной копии сначала используй «Экспорт».`))return;
       archiveMissions(app,'Перед ручной загрузкой из Supabase');
       const ok=await loadStateFromSupabase(true);
@@ -2210,6 +2255,7 @@
     }
 
     function render() {
+      if(!cloudReady){renderCloudUnavailable('Сначала требуется загрузить актуальное состояние из Supabase.');return;}
       normalizeState();
       renderHeader();
       renderTabs();
@@ -2961,6 +3007,35 @@
       }else{mapDrag=null;}
     }
 
+    // Display-only grouping: original mission order and all mission data stay intact.
+    const MISSION_LEADER_ROLE_GROUPS = [
+      {role:'Капитан флота',title:'Капитаны флотов'},
+      {role:'Старший жрец',title:'Старшие жрецы'},
+      {role:'Глава ячейки',title:'Главы ячеек'}
+    ];
+    function renderRoleGroupedMissions(missions, compact=false) {
+      if(!missions?.length)return '';
+      const groups=MISSION_LEADER_ROLE_GROUPS.map(group=>({...group,items:[]}));
+      const unassigned=[];
+      missions.forEach(mission=>{
+        const role=byId('leaders',mission.leaderId)?.type;
+        const group=groups.find(candidate=>candidate.role===role);
+        if(group)group.items.push(mission);
+        else unassigned.push(mission);
+      });
+      if(unassigned.length)groups.push({role:'',title:'Без назначенной роли',items:unassigned});
+      return groups.filter(group=>group.items.length).map(group=>{
+        // A synthetic role object deliberately has no personal art: use the shared
+        // role illustration, not a portrait belonging to an individual leader.
+        const roleSource=group.role?artSrc({type:group.role},'leaders'):'';
+        const fallback=group.role?defaultArtUri({type:group.role},'leaders'):'';
+        const label=compact
+          ? `<div class="mission-role-heading"><span>${escapeHtml(group.title)}</span><span class="mission-role-count">${group.items.length}</span></div>`
+          : `<div class="mission-role-heading mission-role-heading--illustrated">${group.role?`<div class="mission-role-picture"><img alt="" loading="lazy" src="${escapeHtml(roleSource)}" data-fallback="${escapeHtml(fallback)}" onerror="this.onerror=null;this.src=this.dataset.fallback" /></div>`:''}<div class="mission-role-heading-text">${escapeHtml(group.title)}<small>${group.items.length} ${group.items.length%10===1 && group.items.length%100!==11?'миссия':group.items.length%10>=2 && group.items.length%10<=4 && (group.items.length%100<12 || group.items.length%100>14)?'миссии':'миссий'}</small></div></div>`;
+        return `<div class="mission-role-group">${label}<div class="list">${group.items.map(compact?renderMissionCompact:renderMissionCard).join('')}</div></div>`;
+      }).join('');
+    }
+
     function renderOverview() {
       const dangerous=app.locations.filter(l=>l.infamy>=6);
       const fleetsAtSea=app.fleets.filter(f=>['В море','На миссии','Возвращается'].includes(f.status));
@@ -2975,7 +3050,7 @@
         <div class="map-layout">${renderSeaMap()}${renderMapInspector()}</div>
         <div class="grid">
           <section class="panel span-8"><div class="panel-head"><div><h2>⚑ Операции культа</h2><p>Миссии идут своим чередом. Открой приказ, чтобы увидеть подробности.</p></div><button class="ghost small" onclick="setTab('missions')">Все приказы</button></div>
-          <div class="split"><div><h3>В работе · ${active.length}</h3><div class="list">${active.length?active.map(renderMissionCompact).join(''):empty('Нет выполняемых приказов.')}</div></div>
+          <div class="split"><div><h3>В работе · ${active.length}</h3><div>${active.length?renderRoleGroupedMissions(active,true):empty('Нет выполняемых приказов.')}</div></div>
           <div><h3>Ожидают ДМа · ${pending.length}</h3><div class="list">${pending.length?pending.map(renderMissionCompact).join(''):empty('Все приказы рассмотрены.')}</div></div></div></section>
           <section class="panel span-4"><div class="panel-head"><div><h2>♜ Совет культа</h2><p>Свободные главари</p></div></div><div class="list">${freeLeaders().length?freeLeaders().slice(0,4).map(renderLeaderMini).join(''):empty('Все главари заняты.')}</div>
           <div class="actions"><button class="ghost small" onclick="setTab('leaders')">Совет целиком</button></div></section>
@@ -3015,7 +3090,9 @@
       const listed=grouped.map(status=>{
         const ms=status==='Завершена'?completedMissionsNewestFirst():app.missions.filter(m=>m.status===status);
         if(!ms.length)return '';
-        return `<h3>${status} · ${ms.length}</h3><div class="list" style="margin-bottom:14px;">${ms.map(renderMissionCard).join('')}</div>`;
+        return status==='Активна'
+          ? `<h3>${status} · ${ms.length}</h3><div style="margin-bottom:14px;">${renderRoleGroupedMissions(ms,false)}</div>`
+          : `<h3>${status} · ${ms.length}</h3><div class="list" style="margin-bottom:14px;">${ms.map(renderMissionCard).join('')}</div>`;
       }).join('')+(unknown.length?`<h3>Другие статусы · ${unknown.length}</h3><div class="list">${unknown.map(renderMissionCard).join('')}</div>`:'');
       return `
         <div class="grid">
@@ -4406,51 +4483,46 @@
     }
 
     async function bootstrap() {
-      // Opening the downloaded HTML is a safe local preview; it cannot overwrite cloud data.
-      if (location.protocol === 'file:') {
-        const local = loadState();
-        if (local?.cult) app=local;
-        mode='player';
-        normalizeState();
-        syncStatus='Локальный просмотр';
-        cloudSaveEnabled=false;
-        render();
+      // Local file:// is not an authorized game session. Always open the GitHub Pages site.
+      if(location.protocol==='file:') {
+        syncStatus='Нужен сайт GitHub Pages';
+        renderCloudUnavailable('Открыт локальный HTML-файл. Для загрузки актуальных данных из Supabase открой опубликованный сайт на GitHub Pages.');
         return;
       }
       renderLoading();
-      const loaded = await loadStateFromSupabase();
-      cloudSaveEnabled = loaded;
-      
+      await loadStateFromSupabase();
     }
 
-    window.addEventListener('beforeunload', () => {
-      try {
-        archiveMissions(app,'Закрытие вкладки');
-        // Do not let an old tab replace a newer local cache on unload.
-        const stored=loadState();
-        const storedTime=Date.parse(stored?.ui?.lastModifiedAt||'')||0;
-        const ownTime=Date.parse(app.ui?.lastModifiedAt||'')||0;
-        if(storedTime>ownTime)return;
-        localStorage.setItem(STORAGE_KEY,JSON.stringify(app));
-      } catch (error) {}
+    window.addEventListener('beforeunload',()=>{
+      // Do not rewrite the local cache here: the cloud-loaded snapshot or a
+      // genuine local unsent change was already saved at its corresponding event.
+      if(cloudReady && hasUnsavedChanges)archiveMissions(app,'Несохранённые изменения при закрытии вкладки');
     });
-    window.addEventListener('storage', event=>{
-      if(event.key!==STORAGE_KEY||!event.newValue)return;
-      try {
-        const other=JSON.parse(event.newValue);
-        const otherTime=Date.parse(other?.ui?.lastModifiedAt||'')||0;
-        const ownTime=Date.parse(app.ui?.lastModifiedAt||'')||0;
-        if(otherTime>ownTime){
-          archiveMissions(app,'Параллельная вкладка изменила данные');
-          syncConflictNotice('Данные изменились в другой вкладке. Эта вкладка остановила запись в облако.');
+    // localStorage is only a backup. Storage events must never promote its
+    // timestamp above the cloud revision or trigger false sync conflicts.
+
+    async function refreshCloudOnFocus() {
+      if(!cloudReady || hasUnsavedChanges || saveInProgress || document.getElementById('modal')?.open)return;
+      const originalEditRevision=editRevision;
+      try{
+        const cloudRevision=await readCloudRevision();
+        if(!cloudReady || hasUnsavedChanges || saveInProgress || editRevision!==originalEditRevision || document.getElementById('modal')?.open)return;
+        if(!sameCloudRevision(cloudRevision,lastKnownCloudRevision)){
+          renderLoading();
+          await loadStateFromSupabase();
         }
-      }catch(error){console.warn(error);}
+      }catch(error){console.warn('Не удалось проверить облако при возврате на вкладку:',error);}
+    }
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')refreshCloudOnFocus();
     });
 
     function renderLoading() {
-      const main = document.getElementById('main');
-      if (!main) return;
-      main.innerHTML = '<div class="panel"><div class="empty">Загрузка судового журнала из Supabase...<br><br>Если Supabase не ответит за 30 секунд, приложение откроет локальную резервную копию.</div></div>';
+      document.body.classList.add('cloud-unavailable');
+      document.getElementById('tabs').innerHTML='';
+      document.getElementById('resourceRow').innerHTML='';
+      const main=document.getElementById('main');
+      if(main)main.innerHTML='<div class="panel"><div class="empty">Загружаем актуальные данные культа из Supabase...<p class="item-sub">Локальные копии не используются для отображения вместо облака.</p></div></div>';
     }
 
     bootstrap();
